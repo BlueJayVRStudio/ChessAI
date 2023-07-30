@@ -1,19 +1,29 @@
 # citations:
 ## chess piece images: https://commons.wikimedia.org/wiki/Category:PNG_chess_pieces/Standard_transparent
 
+# is this how you enum in python?
 class piece:
-    def __init__(self, identity, x, y):
-        self.identity = identity
-        self.pos = (x, y)
-        self.prevPos = (None, None)
+    def __init__(self):
+        self.WhP = 0
+        self.WhR = 1
+        self.WhKn = 2
+        self.WhB = 3
+        self.WhQ = 4
+        self.WhK = 5
 
-        self.availableMoves = []
-        self.specialMoves = []
+        self.BlP = 6
+        self.BlR = 7
+        self.BlKn = 8
+        self.BlB = 9
+        self.BlQ = 10
+        self.BlK = 11
+
+Piece = piece()
 
 class game:
     def __init__(self):
         self.ongoing = True
-        self.checked = False
+        self._checked = False
         self.win = False
         self.movesAdded = False
 
@@ -23,1045 +33,322 @@ class game:
         self.numMoves = 0
 
         self.board = {}
-        self.discard = []
+        self.availableMoves = {}
 
-        for i in range(8):
-            self.board[chr(97 + i)] = {}
-            for j in range(8):
-                self.board[chr(97 + i)][j + 1] = None
+        self.board[(1, 1)] = Piece.WhR
+        self.board[(2, 1)] = Piece.WhKn
+        self.board[(3, 1)] = Piece.WhB
+        self.board[(4, 1)] = Piece.WhQ
+        self.board[(5, 1)] = Piece.WhK
+        self.board[(6, 1)] = Piece.WhB
+        self.board[(7, 1)] = Piece.WhKn
+        self.board[(8, 1)] = Piece.WhR
 
-        self.WhRQ = piece("white rook", 'a', 1)
-        self.board[self.WhRQ.pos[0]][self.WhRQ.pos[1]] = self.WhRQ
-        self.WhKnQ = piece("white knight", 'b', 1)
-        self.board[self.WhKnQ.pos[0]][self.WhKnQ.pos[1]] = self.WhKnQ
-        self.WhBQ = piece("white bishop", 'c', 1)
-        self.board[self.WhBQ.pos[0]][self.WhBQ.pos[1]] = self.WhBQ
-        self.WhQ = piece("white queen", 'd', 1)
-        self.board[self.WhQ.pos[0]][self.WhQ.pos[1]] = self.WhQ
-        self.WhK = piece("white king", 'e', 1)
-        self.board[self.WhK.pos[0]][self.WhK.pos[1]] = self.WhK
-        self.WhBK = piece("white bishop", 'f', 1)
-        self.board[self.WhBK.pos[0]][self.WhBK.pos[1]] = self.WhBK
-        self.WhKnK = piece("white knight", 'g', 1)
-        self.board[self.WhKnK.pos[0]][self.WhKnK.pos[1]] = self.WhKnK
-        self.WhRK = piece("white rook", 'h', 1)
-        self.board[self.WhRK.pos[0]][self.WhRK.pos[1]] = self.WhRK
+        self.board[(1, 2)] = Piece.WhP
+        self.board[(2, 2)] = Piece.WhP
+        self.board[(3, 2)] = Piece.WhP
+        self.board[(4, 2)] = Piece.WhP
+        self.board[(5, 2)] = Piece.WhP
+        self.board[(6, 2)] = Piece.WhP
+        self.board[(7, 2)] = Piece.WhP
+        self.board[(8, 2)] = Piece.WhP
 
-        self.WhPa = piece("white pawn", 'a', 2)
-        self.board[self.WhPa.pos[0]][self.WhPa.pos[1]] = self.WhPa
-        self.WhPb = piece("white pawn", 'b', 2)
-        self.board[self.WhPb.pos[0]][self.WhPb.pos[1]] = self.WhPb
-        self.WhPc = piece("white pawn", 'c', 2)
-        self.board[self.WhPc.pos[0]][self.WhPc.pos[1]] = self.WhPc
-        self.WhPd = piece("white pawn", 'd', 2)
-        self.board[self.WhPd.pos[0]][self.WhPd.pos[1]] = self.WhPd
-        self.WhPe = piece("white pawn", 'e', 2)
-        self.board[self.WhPe.pos[0]][self.WhPe.pos[1]] = self.WhPe
-        self.WhPf = piece("white pawn", 'f', 2)
-        self.board[self.WhPf.pos[0]][self.WhPf.pos[1]] = self.WhPf
-        self.WhPg = piece("white pawn", 'g', 2)
-        self.board[self.WhPg.pos[0]][self.WhPg.pos[1]] = self.WhPg
-        self.WhPh = piece("white pawn", 'h', 2)
-        self.board[self.WhPh.pos[0]][self.WhPh.pos[1]] = self.WhPh
+        self.board[(1, 7)] = Piece.BlP
+        self.board[(2, 7)] = Piece.BlP
+        self.board[(3, 7)] = Piece.BlP
+        self.board[(4, 7)] = Piece.BlP
+        self.board[(5, 7)] = Piece.BlP
+        self.board[(6, 7)] = Piece.BlP
+        self.board[(7, 7)] = Piece.BlP
+        self.board[(8, 7)] = Piece.BlP
 
-        self.BlPa = piece("black pawn", 'a', 7)
-        self.board[self.BlPa.pos[0]][self.BlPa.pos[1]] = self.BlPa
-        self.BlPb = piece("black pawn", 'b', 7)
-        self.board[self.BlPb.pos[0]][self.BlPb.pos[1]] = self.BlPb
-        self.BlPc = piece("black pawn", 'c', 7)
-        self.board[self.BlPc.pos[0]][self.BlPc.pos[1]] = self.BlPc
-        self.BlPd = piece("black pawn", 'd', 7)
-        self.board[self.BlPd.pos[0]][self.BlPd.pos[1]] = self.BlPd
-        self.BlPe = piece("black pawn", 'e', 7)
-        self.board[self.BlPe.pos[0]][self.BlPe.pos[1]] = self.BlPe
-        self.BlPf = piece("black pawn", 'f', 7)
-        self.board[self.BlPf.pos[0]][self.BlPf.pos[1]] = self.BlPf
-        self.BlPg = piece("black pawn", 'g', 7)
-        self.board[self.BlPg.pos[0]][self.BlPg.pos[1]] = self.BlPg
-        self.BlPh = piece("black pawn", 'h', 7)
-        self.board[self.BlPh.pos[0]][self.BlPh.pos[1]] = self.BlPh
+        self.board[(1, 8)] = Piece.BlR
+        self.board[(2, 8)] = Piece.BlKn
+        self.board[(3, 8)] = Piece.BlB
+        self.board[(4, 8)] = Piece.BlQ
+        self.board[(5, 8)] = Piece.BlK
+        self.board[(6, 8)] = Piece.BlB
+        self.board[(7, 8)] = Piece.BlKn
+        self.board[(8, 8)] = Piece.BlR
 
-        self.BlRQ = piece("black rook", 'a', 8)
-        self.board[self.BlRQ.pos[0]][self.BlRQ.pos[1]] = self.BlRQ
-        self.BlKnQ = piece("black knight", 'b', 8)
-        self.board[self.BlKnQ.pos[0]][self.BlKnQ.pos[1]] = self.BlKnQ
-        self.BlBQ = piece("black bishop", 'c', 8)
-        self.board[self.BlBQ.pos[0]][self.BlBQ.pos[1]] = self.BlBQ
-        self.BlQ = piece("black queen", 'd', 8)
-        self.board[self.BlQ.pos[0]][self.BlQ.pos[1]] = self.BlQ
-        self.BlK = piece("black king", 'e', 8)
-        self.board[self.BlK.pos[0]][self.BlK.pos[1]] = self.BlK
-        self.BlBK = piece("black bishop", 'f', 8)
-        self.board[self.BlBK.pos[0]][self.BlBK.pos[1]] = self.BlBK
-        self.BlKnK = piece("black knight", 'g', 8)
-        self.board[self.BlKnK.pos[0]][self.BlKnK.pos[1]] = self.BlKnK
-        self.BlRK = piece("black rook", 'h', 8)
-        self.board[self.BlRK.pos[0]][self.BlRK.pos[1]] = self.BlRK
+    # check if current player's king is in check
+    def checked(self):
+        keys = list(self.board.keys())
 
-    # takes current piece in consideration and returns itself if it is checking the opponent king
-    def checks(self, handle):
-        if handle.identity[0] == "b":
-            checked = True
-            # if the piece is a black rook, confirm whether it is checking the white king
-            if handle.identity[6:] == "rook":
-                if handle.pos[0] == self.WhK.pos[0]:
-                    # check from top to bottom
-                    if handle.pos[1] > self.WhK.pos[1]:
-                        for k in range(self.WhK.pos[1] + 1, handle.pos[1]):
-                            if self.board[handle.pos[0]][k] is not None:
-                                checked = False
-                                break
-                    # check from bottom to top
-                    else:
-                        for k in range(handle.pos[1] + 1, self.WhK.pos[1]):
-                            if self.board[handle.pos[0]][k] is not None:
-                                checked = False
-                                break
-                elif handle.pos[1] == self.WhK.pos[1]:
-                    # check from right to left
-                    if ord(handle.pos[0]) > ord(self.WhK.pos[0]):
-                        for k in range(ord(self.WhK.pos[0]) + 1, ord(handle.pos[0])):
-                            if self.board[chr(k)][handle.pos[1]] is not None:
-                                checked = False
-                                break
-                    # check from left to right
-                    else:
-                        for k in range(ord(handle.pos[0]) + 1, ord(self.WhK.pos[0])):
-                            if self.board[chr(k)][handle.pos[1]] is not None:
-                                checked = False
-                                break
-                else:
-                    checked = False
+        # check if white king is checked
+        if self.whiteTurn:
+            for key in keys:
+                if self.board[key] == Piece.BlR or self.board[key] == Piece.BlQ:
+                    # left
+                    x = key[0] - 1
+                    y = key[1]
+                    while x > 0:
+                        if (x, y) not in self.board:
+                            x -= 1
+                            continue
 
-            # if the piece is a black bishop, confirm whether it is checking the white king
-            elif handle.identity[6:] == "bishop":
-                if abs(ord(handle.pos[0]) - ord(self.WhK.pos[0])) == abs(handle.pos[1] - self.WhK.pos[1]):
-                    signX = (ord(handle.pos[0]) - ord(self.WhK.pos[0])) / abs(ord(handle.pos[0]) - ord(self.WhK.pos[0]))
-                    signY = (handle.pos[1] - self.WhK.pos[1]) / abs(handle.pos[1] - self.WhK.pos[1])
-                    for k in range(1, abs(handle.pos[1] - self.WhK.pos[1])):
-                        if self.board[chr((int(ord(self.WhK.pos[0]) + k * signX)))][self.WhK.pos[1] + k * signY] is not None:
-                            checked = False
+                        if (self.board[(x, y)] == Piece.WhK):
+                            return True
+                        else:
                             break
-                else:
-                    checked = False
 
-            # if the piece is a black queen, confirm whether it is checking the white king
-            elif handle.identity[6:] == "queen":
-                if handle.pos[0] == self.WhK.pos[0]:
-                    if handle.pos[1] > self.WhK.pos[1]:
-                        for k in range(self.WhK.pos[1] + 1, handle.pos[1]):
-                            if self.board[handle.pos[0]][k] is not None:
-                                checked = False
-                                break
-                    else:
-                        for k in range(handle.pos[1] + 1, self.WhK.pos[1]):
-                            if self.board[handle.pos[0]][k] is not None:
-                                checked = False
-                                break
-                elif handle.pos[1] == self.WhK.pos[1]:
-                    if ord(handle.pos[0]) > ord(self.WhK.pos[0]):
-                        for k in range(ord(self.WhK.pos[0]) + 1, ord(handle.pos[0])):
-                            if self.board[chr(k)][handle.pos[1]] is not None:
-                                checked = False
-                                break
-                    else:
-                        for k in range(ord(handle.pos[0]) + 1, ord(self.WhK.pos[0])):
-                            if self.board[chr(k)][handle.pos[1]] is not None:
-                                checked = False
-                                break
-                elif abs(ord(handle.pos[0]) - ord(self.WhK.pos[0])) == abs(
-                        handle.pos[1] - self.WhK.pos[1]):
-                    signX = (ord(handle.pos[0]) - ord(self.WhK.pos[0])) / abs(
-                        ord(handle.pos[0]) - ord(self.WhK.pos[0]))
-                    signY = (handle.pos[1] - self.WhK.pos[1]) / abs(handle.pos[1] - self.WhK.pos[1])
-                    for k in range(1, abs(handle.pos[1] - self.WhK.pos[1])):
-                        if self.board[chr((int(ord(self.WhK.pos[0]) + k * signX)))][self.WhK.pos[1] + k * signY] is not None:
-                            checked = False
+                    # right
+                    x = key[0] + 1
+                    y = key[1]
+                    while x < 9:
+                        if (x, y) not in self.board:
+                            x += 1
+                            continue
+
+                        if (self.board[(x, y)] == Piece.WhK):
+                            return True
+                        else:
                             break
-                else:
-                    checked = False
+                    
+                    # down
+                    x = key[0]
+                    y = key[1] - 1
+                    while y > 0:
+                        if (x, y) not in self.board:
+                            y -= 1
+                            continue
 
-            # if the piece is a black knight, confirm whether it is checking the white king
-            elif handle.identity[6:] == "knight":
-                if (abs(ord(handle.pos[0]) - ord(self.WhK.pos[0])) == 2
-                    and abs(handle.pos[1] - self.WhK.pos[1]) == 1) \
-                        or (abs(ord(handle.pos[0]) - ord(self.WhK.pos[0])) == 1
-                            and abs(handle.pos[1] - self.WhK.pos[1]) == 2):
-                    pass
-                else:
-                    checked = False
-
-            # if the piece is a black pawn, confirm whether it is checking the white king
-            elif handle.identity[6:] == "pawn":
-                if ((ord(handle.pos[0]) - ord(self.WhK.pos[0])) == 1
-                    or (ord(handle.pos[0]) - ord(self.WhK.pos[0])) == -1) \
-                        and handle.pos[1] - self.WhK.pos[1] == 1:
-                    pass
-                else:
-                    checked = False
-
-            # if black piece is the king (hypothetical)
-            else:
-                if ((ord(handle.pos[0]) - ord(self.WhK.pos[0])), (handle.pos[1] - self.WhK.pos[1])) in [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]:
-                    pass
-                else:
-                    checked = False
-
-            if checked:
-                return handle
-            else:
-                return None
-
-        elif handle.identity[0] == "w":
-            checked = True
-            # if the piece is a white rook, confirm whether it is checking the black king
-            if handle.identity[6:] == "rook":
-                if handle.pos[0] == self.BlK.pos[0]:
-                    # check from top to bottom
-                    if handle.pos[1] > self.BlK.pos[1]:
-                        for k in range(self.BlK.pos[1] + 1, handle.pos[1]):
-                            if self.board[handle.pos[0]][k] is not None:
-                                checked = False
-                                break
-                    # check from bottom to top
-                    else:
-                        for k in range(handle.pos[1] + 1, self.BlK.pos[1]):
-                            if self.board[handle.pos[0]][k] is not None:
-                                checked = False
-                                break
-                elif handle.pos[1] == self.BlK.pos[1]:
-                    # check from right to left
-                    if ord(handle.pos[0]) > ord(self.BlK.pos[0]):
-                        for k in range(ord(self.BlK.pos[0]) + 1, ord(handle.pos[0])):
-                            if self.board[chr(k)][handle.pos[1]] is not None:
-                                checked = False
-                                break
-                    # check from left to right
-                    else:
-                        for k in range(ord(handle.pos[0]) + 1, ord(self.BlK.pos[0])):
-                            if self.board[chr(k)][handle.pos[1]] is not None:
-                                checked = False
-                                break
-                else:
-                    checked = False
-
-            # if the piece is a white bishop, confirm whether it is checking the black king
-            elif handle.identity[6:] == "bishop":
-                if abs(ord(handle.pos[0]) - ord(self.BlK.pos[0])) == abs(handle.pos[1] - self.BlK.pos[1]):
-                    signX = (ord(handle.pos[0]) - ord(self.BlK.pos[0])) / abs(ord(handle.pos[0]) - ord(self.BlK.pos[0]))
-                    signY = (handle.pos[1] - self.BlK.pos[1]) / abs(handle.pos[1] - self.BlK.pos[1])
-                    for k in range(1, abs(handle.pos[1] - self.BlK.pos[1])):
-                        if self.board[chr((int(ord(self.BlK.pos[0]) + k * signX)))][self.BlK.pos[1] + k * signY] is not None:
-                            checked = False
+                        if (self.board[(x, y)] == Piece.WhK):
+                            return True
+                        else:
                             break
-                else:
-                    checked = False
+                    
+                    # up
+                    x = key[0]
+                    y = key[1] + 1
+                    while y < 9:
+                        if (x, y) not in self.board:
+                            y += 1
+                            continue
 
-            # if the piece is a white queen, confirm whether it is checking the black king
-            elif handle.identity[6:] == "queen":
-                if handle.pos[0] == self.BlK.pos[0]:
-                    if handle.pos[1] > self.BlK.pos[1]:
-                        for k in range(self.BlK.pos[1] + 1, handle.pos[1]):
-                            if self.board[handle.pos[0]][k] is not None:
-                                checked = False
-                                break
-                    else:
-                        for k in range(handle.pos[1] + 1, self.BlK.pos[1]):
-                            if self.board[handle.pos[0]][k] is not None:
-                                checked = False
-                                break
-                elif handle.pos[1] == self.BlK.pos[1]:
-                    if ord(handle.pos[0]) > ord(self.BlK.pos[0]):
-                        for k in range(ord(self.BlK.pos[0]) + 1, ord(handle.pos[0])):
-                            if self.board[chr(k)][handle.pos[1]] is not None:
-                                checked = False
-                                break
-                    else:
-                        for k in range(ord(handle.pos[0]) + 1, ord(self.BlK.pos[0])):
-                            if self.board[chr(k)][handle.pos[1]] is not None:
-                                checked = False
-                                break
-                elif abs(ord(handle.pos[0]) - ord(self.BlK.pos[0])) == abs(
-                        handle.pos[1] - self.BlK.pos[1]):
-                    signX = (ord(handle.pos[0]) - ord(self.BlK.pos[0])) / abs(
-                        ord(handle.pos[0]) - ord(self.BlK.pos[0]))
-                    signY = (handle.pos[1] - self.BlK.pos[1]) / abs(handle.pos[1] - self.BlK.pos[1])
-                    for k in range(1, abs(handle.pos[1] - self.BlK.pos[1])):
-                        if self.board[chr((int(ord(self.BlK.pos[0]) + k * signX)))][self.BlK.pos[1] + k * signY] is not None:
-                            checked = False
+                        if (self.board[(x, y)] == Piece.WhK):
+                            return True
+                        else:
                             break
-                else:
-                    checked = False
+                
+                if self.board[key] == Piece.BlB or self.board[key] == Piece.BlQ:
+                    # Diag I
+                    x = key[0] + 1
+                    y = key[1] + 1
+                    while x < 9 and y < 9:
+                        if (x, y) not in self.board:
+                            x += 1
+                            y += 1
+                            continue
 
-            # if the piece is a white knight, confirm whether it is checking the black king
-            elif handle.identity[6:] == "knight":
-                if (abs(ord(handle.pos[0]) - ord(self.BlK.pos[0])) == 2
-                    and abs(handle.pos[1] - self.BlK.pos[1]) == 1) \
-                        or (abs(ord(handle.pos[0]) - ord(self.BlK.pos[0])) == 1
-                            and abs(handle.pos[1] - self.BlK.pos[1]) == 2):
-                    pass
-                else:
-                    checked = False
+                        if (self.board[(x, y)] == Piece.WhK):
+                            return True
+                        else:
+                            break
+                    
+                    # Diag II
+                    x = key[0] - 1
+                    y = key[1] + 1
+                    while x > 0 and y < 9:
+                        if (x, y) not in self.board:
+                            x -= 1
+                            y += 1
+                            continue
 
-            # if the piece is a white pawn, confirm whether it is checking the black king
-            elif handle.identity[6:] == "pawn":
-                if ((ord(handle.pos[0]) - ord(self.BlK.pos[0])) == 1
-                    or (ord(handle.pos[0]) - ord(self.BlK.pos[0])) == -1) \
-                        and handle.pos[1] - self.BlK.pos[1] == -1:
-                    pass
-                else:
-                    checked = False
+                        if (self.board[(x, y)] == Piece.WhK):
+                            return True
+                        else:
+                            break
+                    
+                    # Diag III
+                    x = key[0] - 1
+                    y = key[1] - 1
+                    while x > 0 and y > 0:
+                        if (x, y) not in self.board:
+                            x -= 1
+                            y -= 1
+                            continue
 
-            # if white piece is the king (hypothetical)
-            else:
-                if ((ord(handle.pos[0]) - ord(self.BlK.pos[0])), (handle.pos[1] - self.BlK.pos[1])) in [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]:
-                    pass
-                else:
-                    checked = False
+                        if (self.board[(x, y)] == Piece.WhK):
+                            return True
+                        else:
+                            break
+                    
+                    # Diag IV
+                    x = key[0] + 1
+                    y = key[1] - 1
+                    while x < 9 and y > 0:
+                        if (x, y) not in self.board:
+                            x += 1
+                            y -= 1
+                            continue
 
-            if checked:
-                return handle
-            else:
-                return None
+                        if (self.board[(x, y)] == Piece.WhK):
+                            return True
+                        else:
+                            break
 
-    def newX(self, xPos, steps):
-        return chr(int(ord(xPos) + steps))
+                if self.board[key] == Piece.BlKn:
+                    x = key[0]
+                    y = key[1]
+                    for knPosition in [(x+1, y+2), (x+2, y+1), (x-1, y+2), (x-2, y+1), (x-1, y-2), (x-2, y-1), (x+1, y-2), (x+2, y-1)]:
+                        if knPosition not in self.board:
+                            continue
+                        if self.board[knPosition] == Piece.WhK:
+                            return True
+                
+                if self.board[key] == Piece.BlP:
+                    x = key[0]
+                    y = key[1]
+                    for pPosition in [(x-1, y-1), (x+1, y-1)]:
+                        if pPosition not in self.board:
+                            continue
+                        if self.board[pPosition] == Piece.WhK:
+                            return True
+
+        # check if black king is checked
+        else:
+            for key in keys:
+                if self.board[key] == Piece.WhR or self.board[key] == Piece.WhQ:
+                    # left
+                    x = key[0] - 1
+                    y = key[1]
+                    while x > 0:
+                        if (x, y) not in self.board:
+                            x -= 1
+                            continue
+
+                        if (self.board[(x, y)] == Piece.BlK):
+                            return True
+                        else:
+                            break
+
+                    # right
+                    x = key[0] + 1
+                    y = key[1]
+                    while x < 9:
+                        if (x, y) not in self.board:
+                            x += 1
+                            continue
+
+                        if (self.board[(x, y)] == Piece.BlK):
+                            return True
+                        else:
+                            break
+                    
+                    # down
+                    x = key[0]
+                    y = key[1] - 1
+                    while y > 0:
+                        if (x, y) not in self.board:
+                            y -= 1
+                            continue
+
+                        if (self.board[(x, y)] == Piece.BlK):
+                            return True
+                        else:
+                            break
+                    
+                    # up
+                    x = key[0]
+                    y = key[1] + 1
+                    while y < 9:
+                        if (x, y) not in self.board:
+                            y += 1
+                            continue
+
+                        if (self.board[(x, y)] == Piece.BlK):
+                            return True
+                        else:
+                            break
+                
+                if self.board[key] == Piece.WhB or self.board[key] == Piece.WhQ:
+                    # Diag I
+                    x = key[0] + 1
+                    y = key[1] + 1
+                    while x < 9 and y < 9:
+                        if (x, y) not in self.board:
+                            x += 1
+                            y += 1
+                            continue
+
+                        if (self.board[(x, y)] == Piece.BlK):
+                            return True
+                        else:
+                            break
+                    
+                    # Diag II
+                    x = key[0] - 1
+                    y = key[1] + 1
+                    while x > 0 and y < 9:
+                        if (x, y) not in self.board:
+                            x -= 1
+                            y += 1
+                            continue
+
+                        if (self.board[(x, y)] == Piece.BlK):
+                            return True
+                        else:
+                            break
+                    
+                    # Diag III
+                    x = key[0] - 1
+                    y = key[1] - 1
+                    while x > 0 and y > 0:
+                        if (x, y) not in self.board:
+                            x -= 1
+                            y -= 1
+                            continue
+
+                        if (self.board[(x, y)] == Piece.BlK):
+                            return True
+                        else:
+                            break
+                    
+                    # Diag IV
+                    x = key[0] + 1
+                    y = key[1] - 1
+                    while x < 9 and y > 0:
+                        if (x, y) not in self.board:
+                            x += 1
+                            y -= 1
+                            continue
+
+                        if (self.board[(x, y)] == Piece.BlK):
+                            return True
+                        else:
+                            break
+
+                if self.board[key] == Piece.WhKn:
+                    x = key[0]
+                    y = key[1]
+                    for knPosition in [(x+1, y+2), (x+2, y+1), (x-1, y+2), (x-2, y+1), (x-1, y-2), (x-2, y-1), (x+1, y-2), (x+2, y-1)]:
+                        if knPosition not in self.board:
+                            continue
+                        if self.board[knPosition] == Piece.BlK:
+                            return True
+                
+                if self.board[key] == Piece.WhP:
+                    x = key[0]
+                    y = key[1]
+                    for pPosition in [(x-1, y+1), (x+1, y+1)]:
+                        if pPosition not in self.board:
+                            continue
+                        if self.board[pPosition] == Piece.BlK:
+                            return True
+            
+        return False
+
+    
+    def playMove(self, start, end):
+        pass
+
+    def reverseMove(self):
+        pass
 
     def addMoves(self):
-        # regardless of legality, check for all available moves for white's turn
-        if self.whiteTurn:
-            for i in self.board:
-                for j in self.board[i]:
-                    if self.board[i][j] is not None:
-                        handle = self.board[i][j]
-                        if handle.identity[0] == "w":
-                            if handle.identity[6:] == "rook":
-                                handle.availableMoves = []
-                                # horizontal+
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1]] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1]))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1]].identity[0] == "w":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1]))
-                                            break
-                                    except Exception as e:
-                                        break
+        pass
 
-                                #horizontal-
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1]] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1]))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1]].identity[0] == "w":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1]))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                #vertical+
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[handle.pos[0]][handle.pos[1] + counter] is None:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] + counter))
-                                            counter += 1
-                                        elif self.board[handle.pos[0]][handle.pos[1] + counter].identity[0] == "w":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] + counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                #vertical-
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[handle.pos[0]][handle.pos[1] - counter] is None:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] - counter))
-                                            counter += 1
-                                        elif self.board[handle.pos[0]][handle.pos[1] - counter].identity[0] == "w":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] - counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                            elif handle.identity[6:] == "bishop":
-                                handle.availableMoves = []
-                                # diagonal I
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1] + counter] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1] + counter))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1] + counter].identity[0] == "w":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1] + counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # diagonal II
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1] + counter] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1] + counter))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1] + counter].identity[0] == "w":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1] + counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # diagonal III
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1] - counter] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1] - counter))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1] - counter].identity[0] == "w":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1] - counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # diagonal IV
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1] - counter] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1] - counter))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1] - counter].identity[0] == "w":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1] - counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                            elif handle.identity[6:] == "queen":
-                                handle.availableMoves = []
-
-                                # horizontal+
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1]] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1]))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1]].identity[0] == "w":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1]))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                #horizontal-
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1]] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1]))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1]].identity[0] == "w":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1]))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                #vertical+
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[handle.pos[0]][handle.pos[1] + counter] is None:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] + counter))
-                                            counter += 1
-                                        elif self.board[handle.pos[0]][handle.pos[1] + counter].identity[0] == "w":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] + counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                #vertical-
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[handle.pos[0]][handle.pos[1] - counter] is None:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] - counter))
-                                            counter += 1
-                                        elif self.board[handle.pos[0]][handle.pos[1] - counter].identity[0] == "w":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] - counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # diagonal I
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1] + counter] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1] + counter))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1] + counter].identity[0] == "w":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1] + counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # diagonal II
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1] + counter] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1] + counter))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1] + counter].identity[0] == "w":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1] + counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # diagonal III
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1] - counter] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1] - counter))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1] - counter].identity[0] == "w":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1] - counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # diagonal IV
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1] - counter] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1] - counter))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1] - counter].identity[0] == "w":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1] - counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                            elif handle.identity[6:] == "knight":
-                                handle.availableMoves = []
-                                for k in [(2,1),(1,2),(-1,2),(-2,1),(-2,-1),(-1,-2),(1,-2),(2,-1)]:
-                                    try:
-                                        if self.board[chr(int(ord(handle.pos[0]) + k[0]))][handle.pos[1] + k[1]] is not None:
-                                            if self.board[chr(int(ord(handle.pos[0])+k[0]))][handle.pos[1]+k[1]].identity[0] == "w":
-                                                pass
-                                            else:
-                                                handle.availableMoves.append((chr(int(ord(handle.pos[0]) + k[0])), handle.pos[1] + k[1]))
-                                        else:
-                                            handle.availableMoves.append((chr(int(ord(handle.pos[0]) + k[0])), handle.pos[1] + k[1]))
-                                    except:
-                                        pass
-
-                            elif handle.identity[6:] == "king":
-                                handle.availableMoves = []
-                                # normal moves
-                                for k in [(1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),(1,-1)]:
-                                    try:
-                                        if self.board[chr(int(ord(handle.pos[0]) + k[0]))][handle.pos[1] + k[1]] is not None:
-                                            if self.board[chr(int(ord(handle.pos[0]) + k[0]))][handle.pos[1] + k[1]].identity[0] == "w":
-                                                pass
-                                            else:
-                                                handle.availableMoves.append((chr(int(ord(handle.pos[0]) + k[0])), handle.pos[1] + k[1]))
-                                        else:
-                                            handle.availableMoves.append((chr(int(ord(handle.pos[0]) + k[0])), handle.pos[1] + k[1]))
-                                    except Exception as e:
-                                        pass
-
-                                if self.WhRK not in self.discard:
-                                    if self.WhK.prevPos[0] is None and self.WhRK.prevPos[0] is None:
-                                        temp = True
-                                        for k in [('f', 1), ('g', 1)]:
-                                            if self.board[k[0]][k[1]] is not None:
-                                                temp = False
-                                        if temp:
-                                            self.WhK.availableMoves.append("CK")
-                                if self.WhRQ not in self.discard:
-                                    # queen side castle
-                                    if self.WhK.prevPos[0] is None and self.WhRQ.prevPos[0] is None:
-                                        temp = True
-                                        for k in [('b', 1), ('c', 1), ('d', 1)]:
-                                            if self.board[k[0]][k[1]] is not None:
-                                                temp = False
-                                        if temp:
-                                            self.WhK.availableMoves.append("CQ")
-
-                            elif handle.identity[6:] == "pawn":
-                                handle.availableMoves = []
-
-                                # en passant
-                                if handle.pos[1] == 5:
-                                    try:
-                                        if self.board[self.newX(handle.pos[0], 1)][handle.pos[1]] is not None:
-                                            if self.board[self.newX(handle.pos[0], 1)][handle.pos[1]].identity == "black pawn":
-                                                if self.board[self.newX(handle.pos[0], 1)][handle.pos[1]].prevPos[0] == (self.newX(handle.pos[0], 1), handle.pos[1] + 2):
-                                                    if self.board[self.newX(handle.pos[0], 1)][handle.pos[1]].prevPos[1] == self.numMoves:
-                                                        handle.availableMoves.append("EPI")
-                                    except:
-                                        pass
-
-                                    try:
-                                        if self.board[self.newX(handle.pos[0], -1)][handle.pos[1]] is not None:
-                                            if self.board[self.newX(handle.pos[0], -1)][handle.pos[1]].identity == "black pawn":
-                                                if self.board[self.newX(handle.pos[0], -1)][handle.pos[1]].prevPos[0] == (self.newX(handle.pos[0], -1), handle.pos[1] + 2):
-                                                    if self.board[self.newX(handle.pos[0], -1)][handle.pos[1]].prevPos[1] == self.numMoves:
-                                                        handle.availableMoves.append("EPII")
-                                    except:
-                                        pass
-                                if handle.pos[1] < 7:
-                                    # normal move
-                                    if self.board[handle.pos[0]][handle.pos[1] + 1] is None:
-                                        handle.availableMoves.append((handle.pos[0], handle.pos[1] + 1))
-                                        if self.board[handle.pos[0]][handle.pos[1] + 2] is None and handle.prevPos[0] is None:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] + 2))
-                                    # take
-                                    try:
-                                        if self.board[self.newX(handle.pos[0], 1)][handle.pos[1] + 1] is not None:
-                                            if self.board[self.newX(handle.pos[0], 1)][handle.pos[1] + 1].identity[0] == "b":
-                                                handle.availableMoves.append((self.newX(handle.pos[0], 1), handle.pos[1] + 1))
-                                    except:
-                                        pass
-
-                                    try:
-                                        if self.board[self.newX(handle.pos[0], -1)][handle.pos[1] + 1] is not None:
-                                            if self.board[self.newX(handle.pos[0], -1)][handle.pos[1] + 1].identity[0] == "b":
-                                                handle.availableMoves.append((self.newX(handle.pos[0], -1), handle.pos[1] + 1))
-                                    except:
-                                        pass
-                                else:
-                                    # pawn promotion
-                                    if self.board[handle.pos[0]][handle.pos[1] + 1] is None:
-                                        handle.availableMoves.append("PPr0")
-
-                                    # take
-                                    try:
-                                        if self.board[self.newX(handle.pos[0], 1)][handle.pos[1] + 1] is not None:
-                                            if self.board[self.newX(handle.pos[0], 1)][handle.pos[1] + 1].identity[0] == "b":
-                                                handle.availableMoves.append("PPrI")
-                                    except:
-                                        pass
-
-                                    try:
-                                        if self.board[self.newX(handle.pos[0], -1)][handle.pos[1] + 1] is not None:
-                                            if self.board[self.newX(handle.pos[0], -1)][handle.pos[1] + 1].identity[0] == "b":
-                                                handle.availableMoves.append("PPrII")
-                                    except:
-                                        pass
-
-                            else:
-                                pass
-
-        # regardless of legality, check for all available moves for black's turn
-        else:
-            for i in self.board:
-                for j in self.board[i]:
-                    if self.board[i][j] is not None:
-                        handle = self.board[i][j]
-                        if handle.identity[0] == "b":
-                            if handle.identity[6:] == "rook":
-                                handle.availableMoves = []
-                                # horizontal+
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1]] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1]))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1]].identity[0] == "b":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1]))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # horizontal-
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1]] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1]))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1]].identity[0] == "b":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1]))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # vertical+
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[handle.pos[0]][handle.pos[1] + counter] is None:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] + counter))
-                                            counter += 1
-                                        elif self.board[handle.pos[0]][handle.pos[1] + counter].identity[0] == "b":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] + counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # vertical-
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[handle.pos[0]][handle.pos[1] - counter] is None:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] - counter))
-                                            counter += 1
-                                        elif self.board[handle.pos[0]][handle.pos[1] - counter].identity[0] == "b":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] - counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                            elif handle.identity[6:] == "bishop":
-                                handle.availableMoves = []
-                                # diagonal I
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1] + counter] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1] + counter))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1] + counter].identity[0] == "b":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1] + counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # diagonal II
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1] + counter] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1] + counter))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1] + counter].identity[0] == "b":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1] + counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # diagonal III
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1] - counter] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1] - counter))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1] - counter].identity[0] == "b":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1] - counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # diagonal IV
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1] - counter] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1] - counter))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1] - counter].identity[0] == "b":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1] - counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                            elif handle.identity[6:] == "queen":
-                                handle.availableMoves = []
-
-                                # horizontal+
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1]] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1]))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1]].identity[0] == "b":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1]))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # horizontal-
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1]] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1]))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1]].identity[0] == "b":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1]))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # vertical+
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[handle.pos[0]][handle.pos[1] + counter] is None:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] + counter))
-                                            counter += 1
-                                        elif self.board[handle.pos[0]][handle.pos[1] + counter].identity[0] == "b":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] + counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # vertical-
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[handle.pos[0]][handle.pos[1] - counter] is None:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] - counter))
-                                            counter += 1
-                                        elif self.board[handle.pos[0]][handle.pos[1] - counter].identity[0] == "b":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] - counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # diagonal I
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1] + counter] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1] + counter))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1] + counter].identity[0] == "b":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1] + counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # diagonal II
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1] + counter] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1] + counter))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1] + counter].identity[0] == "b":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1] + counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # diagonal III
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1] - counter] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1] - counter))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) - counter)][handle.pos[1] - counter].identity[0] == "b":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) - counter), handle.pos[1] - counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                                # diagonal IV
-                                counter = 1
-                                while True:
-                                    try:
-                                        if self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1] - counter] is None:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1] - counter))
-                                            counter += 1
-                                        elif self.board[chr(ord(handle.pos[0]) + counter)][handle.pos[1] - counter].identity[0] == "b":
-                                            break
-                                        else:
-                                            handle.availableMoves.append((chr(ord(handle.pos[0]) + counter), handle.pos[1] - counter))
-                                            break
-                                    except Exception as e:
-                                        break
-
-                            elif handle.identity[6:] == "knight":
-                                handle.availableMoves = []
-                                for k in [(2, 1), (1, 2), (-1, 2), (-2, 1), (-2, -1), (-1, -2), (1, -2), (2, -1)]:
-                                    try:
-                                        if self.board[chr(int(ord(handle.pos[0]) + k[0]))][handle.pos[1] + k[1]] is not None:
-                                            if self.board[chr(int(ord(handle.pos[0]) + k[0]))][handle.pos[1] + k[1]].identity[0] == "b":
-                                                pass
-                                            else:
-                                                handle.availableMoves.append((chr(int(ord(handle.pos[0]) + k[0])), handle.pos[1] + k[1]))
-                                        else:
-                                            handle.availableMoves.append((chr(int(ord(handle.pos[0]) + k[0])), handle.pos[1] + k[1]))
-                                    except:
-                                        pass
-
-                            elif handle.identity[6:] == "king":
-                                handle.availableMoves = []
-                                # normal moves
-                                for k in [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]:
-                                    try:
-                                        if self.board[chr(int(ord(handle.pos[0]) + k[0]))][handle.pos[1] + k[1]] is not None:
-                                            if self.board[chr(int(ord(handle.pos[0]) + k[0]))][handle.pos[1] + k[1]].identity[0] == "b":
-                                                pass
-                                            else:
-                                                handle.availableMoves.append((chr(int(ord(handle.pos[0]) + k[0])), handle.pos[1] + k[1]))
-                                        else:
-                                            handle.availableMoves.append((chr(int(ord(handle.pos[0]) + k[0])), handle.pos[1] + k[1]))
-                                    except Exception as e:
-                                        pass
-
-                                # king side castle
-                                if self.BlRK not in self.discard:
-                                    if self.BlK.prevPos[0] is None and self.BlRK.prevPos[0] is None:
-                                        temp = True
-                                        for k in [('f', 8), ('g', 8)]:
-                                            if self.board[k[0]][k[1]] is not None:
-                                                temp = False
-                                        if temp:
-                                            self.BlK.availableMoves.append("CK")
-
-                                # queen side castle
-                                if self.BlRQ not in self.discard:
-                                    if self.BlK.prevPos[0] is None and self.BlRQ.prevPos[0] is None:
-                                        temp = True
-                                        for k in [('b', 8), ('c', 8), ('d', 8)]:
-                                            if self.board[k[0]][k[1]] is not None:
-                                                temp = False
-                                        if temp:
-                                            self.BlK.availableMoves.append("CQ")
-
-                            elif handle.identity[6:] == "pawn":
-                                handle.availableMoves = []
-
-                                # en passant
-                                if handle.pos[1] == 4:
-                                    try:
-                                        if self.board[self.newX(handle.pos[0], 1)][handle.pos[1]] is not None:
-                                            if self.board[self.newX(handle.pos[0], 1)][handle.pos[1]].identity == "white pawn":
-                                                if self.board[self.newX(handle.pos[0], 1)][handle.pos[1]].prevPos[0] == (self.newX(handle.pos[0], 1), handle.pos[1] - 2):
-                                                    if self.board[self.newX(handle.pos[0], 1)][handle.pos[1]].prevPos[1] == self.numMoves:
-                                                        handle.availableMoves.append("EPIV")
-                                    except:
-                                        pass
-
-                                    try:
-                                        if self.board[self.newX(handle.pos[0], -1)][handle.pos[1]] is not None:
-                                            if self.board[self.newX(handle.pos[0], -1)][handle.pos[1]].identity == "white pawn":
-                                                if self.board[self.newX(handle.pos[0], -1)][handle.pos[1]].prevPos[0] == (self.newX(handle.pos[0], -1), handle.pos[1] - 2):
-                                                    if self.board[self.newX(handle.pos[0], -1)][handle.pos[1]].prevPos[1] == self.numMoves:
-                                                        handle.availableMoves.append("EPIII")
-                                    except Exception as e:
-                                        pass
-
-                                if handle.pos[1] > 2:
-                                    # normal move
-                                    if self.board[handle.pos[0]][handle.pos[1] - 1] is None:
-                                        handle.availableMoves.append((handle.pos[0], handle.pos[1] - 1))
-                                        if self.board[handle.pos[0]][handle.pos[1] - 2] is None and handle.prevPos[0] is None:
-                                            handle.availableMoves.append((handle.pos[0], handle.pos[1] - 2))
-                                    # take
-                                    try:
-                                        if self.board[self.newX(handle.pos[0], 1)][handle.pos[1] - 1] is not None:
-                                            if self.board[self.newX(handle.pos[0], 1)][handle.pos[1] - 1].identity[0] == "w":
-                                                handle.availableMoves.append((self.newX(handle.pos[0], 1), handle.pos[1] - 1))
-                                    except:
-                                        pass
-
-                                    try:
-                                        if self.board[self.newX(handle.pos[0], -1)][handle.pos[1] - 1] is not None:
-                                            if self.board[self.newX(handle.pos[0], -1)][handle.pos[1] - 1].identity[0] == "w":
-                                                handle.availableMoves.append((self.newX(handle.pos[0], -1), handle.pos[1] - 1))
-                                    except Exception as e:
-                                        pass
-                                else:
-                                    # pawn promotion
-                                    if self.board[handle.pos[0]][handle.pos[1] - 1] is None:
-                                        handle.availableMoves.append("PPr0")
-
-                                    # take
-                                    try:
-                                        if self.board[self.newX(handle.pos[0], 1)][handle.pos[1] - 1] is not None:
-                                            if self.board[self.newX(handle.pos[0], 1)][handle.pos[1] - 1].identity[0] == "w":
-                                                handle.availableMoves.append("PPrIV")
-                                    except:
-                                        pass
-
-                                    try:
-                                        if self.board[self.newX(handle.pos[0], -1)][handle.pos[1] - 1] is not None:
-                                            if self.board[self.newX(handle.pos[0], -1)][handle.pos[1] - 1].identity[0] == "w":
-                                                handle.availableMoves.append("PPrIII")
-                                    except:
-                                        pass
-
-                            else:
-                                pass
 
 # game instance
 import pygame
