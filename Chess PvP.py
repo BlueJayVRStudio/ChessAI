@@ -92,7 +92,7 @@ class game:
         keys = list(self.board.keys())
 
         # check if white king is checked
-        if self.currentConditions.whiteTurn:
+        if not self.currentConditions.whiteTurn:
             for key in keys:
                 if self.board[key] == Piece.BlR or self.board[key] == Piece.BlQ:
                     # left
@@ -355,7 +355,12 @@ class game:
             
         return False
 
-    
+    def currChecked(self):
+        self.currentConditions.whiteTurn = not self.currentConditions.whiteTurn
+        toReturn = self.checked()
+        self.currentConditions.whiteTurn = not self.currentConditions.whiteTurn
+        return toReturn
+
     def playMove(self, move):
         self.previousMoves.append(move)
         ((start, end), special) = move
@@ -364,8 +369,27 @@ class game:
         self.currentConditions = self.currentConditions.getCopy()
 
         if special == "" or special == "WK" or special == "BK" or special == "PPr":
+            if self.board[start] == Piece.WhR and start == (1, 1):
+                self.currentConditions.hasWRookQMoved = True
+            elif self.board[start] == Piece.WhR and start == (8, 1):
+                self.currentConditions.hasWRookKMoved = True
+            elif self.board[start] == Piece.BlR and start == (1, 8):
+                self.currentConditions.hasBRookQMoved = True
+            elif self.board[start] == Piece.BlR and start == (8, 8):
+                self.currentConditions.hasBRookKMoved = True
+             
             if end in self.board:
                 self.previousTaken.append(self.board[end])
+
+                if self.board[end] == Piece.WhR and end == (1, 1):
+                    self.currentConditions.hasWRookQMoved = True
+                elif self.board[end] == Piece.WhR and end == (8, 1):
+                    self.currentConditions.hasWRookKMoved = True
+                elif self.board[end] == Piece.BlR and end == (1, 8):
+                    self.currentConditions.hasBRookQMoved = True
+                elif self.board[end] == Piece.BlR and end == (8, 8):
+                    self.currentConditions.hasBRookKMoved = True
+                    
             else:
                 self.previousTaken.append(None)
             self.board[end] = self.board[start]
@@ -387,8 +411,8 @@ class game:
             self.currentConditions.hasWRookQMoved = True
         
         if special == "BQC":
-            self.board[(3, 8)] = Piece.WhK
-            self.board[(4, 8)] = Piece.WhR
+            self.board[(3, 8)] = Piece.BlK
+            self.board[(4, 8)] = Piece.BlR
             self.board.pop((1, 8))
             self.board.pop((5, 8))
             self.previousTaken.append(None)
@@ -499,7 +523,7 @@ class game:
                     y = key[1]
                     while x > 0:
                         if (x, y) not in self.board:                            
-                            self.playMove(((key, (x, y)), ""))
+                            self.playMove(((key, (x, y)), "")) # special == "WRQ" if queen side rook to keep track of castling condition
                             if not self.checked():
                                 self.availableMoves[key].append(((key, (x, y)), ""))
                             self.reverseMove()
@@ -673,10 +697,11 @@ class game:
                     y = key[1]
                     for knPosition in [(x+1, y+2), (x+2, y+1), (x-1, y+2), (x-2, y+1), (x-1, y-2), (x-2, y-1), (x+1, y-2), (x+2, y-1)]:
                         if knPosition not in self.board:
-                            self.playMove(((key, knPosition), ""))
-                            if not self.checked():
-                                self.availableMoves[key].append(((key, knPosition), ""))
-                            self.reverseMove()
+                            if 0 < knPosition[0] < 9 and 0 < knPosition[1] < 9:
+                                self.playMove(((key, knPosition), ""))
+                                if not self.checked():
+                                    self.availableMoves[key].append(((key, knPosition), ""))
+                                self.reverseMove()
                         
                         elif self.board[knPosition] > 5:
                             self.playMove(((key, knPosition), ""))
@@ -689,22 +714,32 @@ class game:
                     x = key[0]
                     y = key[1]
                     for kPosition in [(x+1, y+0), (x+1, y+1), (x+0, y+1), (x-1, y+1), (x-1, y+0), (x-1, y-1), (x+0, y-1), (x+1, y-1)]:
-                        if kPosition not in self.board:
+                        if kPosition not in self.board and 0 < kPosition[0] < 9 and 0 < kPosition[1] < 9:
                             self.playMove(((key, kPosition), "WK"))
                             if not self.checked():
                                 self.availableMoves[key].append(((key, kPosition), "WK"))
                             self.reverseMove()
-                            continue
-                    if not self.currentConditions.hasWhiteKingMoved and not self.currentConditions.hasWRookQMoved:
+                        elif 0 < kPosition[0] < 9 and 0 < kPosition[1] < 9 and self.board[kPosition] > 5:
+                            self.playMove(((key, kPosition), "WK"))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, kPosition), "WK"))
+                            self.reverseMove()
+
+                    # cannot currently be in check and king cannot cross through check. (DONE)
+                    # you also have to check if the rook is captured or not. It could have never moved but still have been captured... (DONE)
+                    if not self.currChecked() and not self.currentConditions.hasWhiteKingMoved and not self.currentConditions.hasWRookQMoved:
                         if (2, 1) not in self.board and (3, 1) not in self.board and (4, 1) not in self.board:
                             self.playMove(((key, (3, 1)), "WQC"))
+                            self.board[(3, 1)] = Piece.WhK
+                            self.board[(4, 1)] = Piece.WhK
                             if not self.checked():
                                 self.availableMoves[key].append(((key, (3, 1)), "WQC"))
                             self.reverseMove()
                             
-                    if not self.currentConditions.hasWhiteKingMoved and not self.currentConditions.hasWRookKMoved:
+                    if not self.currChecked() and not self.currentConditions.hasWhiteKingMoved and not self.currentConditions.hasWRookKMoved:
                         if (6, 1) not in self.board and (7, 1) not in self.board:
                             self.playMove(((key, (7, 1)), "WKC"))
+                            self.board[(6, 1)] = Piece.WhK
                             if not self.checked():
                                 self.availableMoves[key].append(((key, (7, 1)), "WKC"))
                             self.reverseMove()
@@ -785,8 +820,8 @@ class game:
                             x -= 1
                             continue
                         
-                        # if the piece in question is a black piece
-                        if (self.board[(x, y)] > 5):
+                        # if the piece in question is a white piece
+                        if (self.board[(x, y)] <= 5):
                             self.playMove(((key, (x, y)), ""))
                             if not self.checked():
                                 self.availableMoves[key].append(((key, (x, y)), ""))
@@ -806,8 +841,8 @@ class game:
                             x += 1
                             continue
                         
-                        # if the piece in question is a black piece
-                        if (self.board[(x, y)] > 5):
+                        # if the piece in question is a white piece
+                        if (self.board[(x, y)] <= 5):
                             self.playMove(((key, (x, y)), ""))
                             if not self.checked():
                                 self.availableMoves[key].append(((key, (x, y)), ""))
@@ -827,8 +862,8 @@ class game:
                             y -= 1
                             continue
                         
-                        # if the piece in question is a black piece
-                        if (self.board[(x, y)] > 5):
+                        # if the piece in question is a white piece
+                        if (self.board[(x, y)] <= 5):
                             self.playMove(((key, (x, y)), ""))
                             if not self.checked():
                                 self.availableMoves[key].append(((key, (x, y)), ""))
@@ -848,8 +883,8 @@ class game:
                             y += 1
                             continue
                         
-                        # if the piece in question is a black piece
-                        if (self.board[(x, y)] > 5):
+                        # if the piece in question is a white piece
+                        if (self.board[(x, y)] <= 5):
                             self.playMove(((key, (x, y)), ""))
                             if not self.checked():
                                 self.availableMoves[key].append(((key, (x, y)), ""))
@@ -871,8 +906,8 @@ class game:
                             y += 1
                             continue
                         
-                        # if the piece in question is a black piece
-                        if (self.board[(x, y)] > 5):
+                        # if the piece in question is a white piece
+                        if (self.board[(x, y)] <= 5):
                             self.playMove(((key, (x, y)), ""))
                             if not self.checked():
                                 self.availableMoves[key].append(((key, (x, y)), ""))
@@ -893,8 +928,8 @@ class game:
                             y += 1
                             continue
                         
-                        # if the piece in question is a black piece
-                        if (self.board[(x, y)] > 5):
+                        # if the piece in question is a white piece
+                        if (self.board[(x, y)] <= 5):
                             self.playMove(((key, (x, y)), ""))
                             if not self.checked():
                                 self.availableMoves[key].append(((key, (x, y)), ""))
@@ -915,8 +950,8 @@ class game:
                             y -= 1
                             continue
                         
-                        # if the piece in question is a black piece
-                        if (self.board[(x, y)] > 5):
+                        # if the piece in question is a white piece
+                        if (self.board[(x, y)] <= 5):
                             self.playMove(((key, (x, y)), ""))
                             if not self.checked():
                                 self.availableMoves[key].append(((key, (x, y)), ""))
@@ -937,8 +972,8 @@ class game:
                             y -= 1
                             continue
                         
-                        # if the piece in question is a black piece
-                        if (self.board[(x, y)] > 5):
+                        # if the piece in question is a white piece
+                        if (self.board[(x, y)] <= 5):
                             self.playMove(((key, (x, y)), ""))
                             if not self.checked():
                                 self.availableMoves[key].append(((key, (x, y)), ""))
@@ -950,12 +985,13 @@ class game:
                     y = key[1]
                     for knPosition in [(x+1, y+2), (x+2, y+1), (x-1, y+2), (x-2, y+1), (x-1, y-2), (x-2, y-1), (x+1, y-2), (x+2, y-1)]:
                         if knPosition not in self.board:
-                            self.playMove(((key, knPosition), ""))
-                            if not self.checked():
-                                self.availableMoves[key].append(((key, knPosition), ""))
-                            self.reverseMove()
+                            if 0 < knPosition[0] < 9 and 0 < knPosition[1] < 9:
+                                self.playMove(((key, knPosition), ""))
+                                if not self.checked():
+                                    self.availableMoves[key].append(((key, knPosition), ""))
+                                self.reverseMove()
                         
-                        elif self.board[knPosition] > 5:
+                        elif self.board[knPosition] <= 5:
                             self.playMove(((key, knPosition), ""))
                             if not self.checked():
                                 self.availableMoves[key].append(((key, knPosition), ""))
@@ -966,22 +1002,30 @@ class game:
                     x = key[0]
                     y = key[1]
                     for kPosition in [(x+1, y+0), (x+1, y+1), (x+0, y+1), (x-1, y+1), (x-1, y+0), (x-1, y-1), (x+0, y-1), (x+1, y-1)]:
-                        if kPosition not in self.board:
+                        if kPosition not in self.board and 0 < kPosition[0] < 9 and 0 < kPosition[1] < 9:
                             self.playMove(((key, kPosition), "BK"))
                             if not self.checked():
                                 self.availableMoves[key].append(((key, kPosition), "BK"))
                             self.reverseMove()
-                            continue
-                    if not self.currentConditions.hasBlackKingMoved and not self.currentConditions.hasBRookQMoved:
+                        elif 0 < kPosition[0] < 9 and 0 < kPosition[1] < 9 and self.board[kPosition] <= 5:
+                            self.playMove(((key, kPosition), "BK"))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, kPosition), "BK"))
+                            self.reverseMove()
+                    
+                    if not self.currChecked() and not self.currentConditions.hasBlackKingMoved and not self.currentConditions.hasBRookQMoved:
                         if (2, 8) not in self.board and (3, 8) not in self.board and (4, 8) not in self.board:
                             self.playMove(((key, (3, 8)), "BQC"))
+                            self.board[(3, 8)] = Piece.BlK
+                            self.board[(4, 8)] = Piece.BlK
                             if not self.checked():
                                 self.availableMoves[key].append(((key, (3, 8)), "BQC"))
                             self.reverseMove()
                             
-                    if not self.currentConditions.hasBlackKingMoved and not self.currentConditions.hasBRookKMoved:
+                    if not self.currChecked() and not self.currentConditions.hasBlackKingMoved and not self.currentConditions.hasBRookKMoved:
                         if (6, 8) not in self.board and (7, 8) not in self.board:
                             self.playMove(((key, (7, 8)), "BKC"))
+                            self.board[(6, 8)] = Piece.BlK
                             if not self.checked():
                                 self.availableMoves[key].append(((key, (7, 8)), "BKC"))
                             self.reverseMove()
@@ -1100,7 +1144,7 @@ pressed = False
 
 # game loop
 while not crashed:
-
+    # print(game1.currentConditions.whiteTurn)
     ### INPUT ###
 
     xEdgeDrag = None
@@ -1155,7 +1199,7 @@ while not crashed:
     availableMoves = game1.availableMoves
     availableKeys = list(availableMoves.keys())
     if len(availableKeys) == 0:
-        if game1.checked():
+        if game1.currChecked():
             if game1.currentConditions.whiteTurn:
                 # black victory
                 print("black wins")
@@ -1171,9 +1215,13 @@ while not crashed:
 
     if desiredMove is not None: # and it is a valid move
         # play move
-        print(desiredMove)
-        # add new moves
-        desiredMove = None
+        if desiredMove[0] in game1.availableMoves:
+            for move in game1.availableMoves[desiredMove[0]]:
+                ((start, end), special) = move
+                if desiredMove != None and desiredMove[1] == end:
+                    game1.playMove(move)
+                    game1.addMoves()
+                    desiredMove = None
     else:
         pass
     
@@ -1215,7 +1263,8 @@ while not crashed:
     for i in list(game1.board.keys()):
         if drag is None:
             gameDisplay.blit(pieceImages[game1.board[i]], (((i[0]-1) * width) + xOffset, -(i[1] * height) + (height*8+yOffset)))
-        else:
+
+        elif drag is not None and (xCoord, yCoord) in game1.board:
             if xCoord != i[0] or yCoord != i[1]:
                 gameDisplay.blit(pieceImages[game1.board[i]], (((i[0]-1) * width) + xOffset, -(i[1] * height) + (height*8+yOffset)))
             
@@ -1226,51 +1275,7 @@ while not crashed:
             if (xCoord, yCoord) in game1.availableMoves:
                 for move in game1.availableMoves[(xCoord, yCoord)]:
                     ((start, end), special) = move
-                    pygame.draw.circle(gameDisplay, (200,0,0), ((end[0] * 60) + 160 + 30, -(end[1] * 60) + 540 + 30), 10)
-
-
-
-    # if drag is not None:
-    #     if xEdge != 0 and yEdge != 0:
-    #         if 0 <= xCoord < 8 and 0 <= yCoord < 8:
-    #             if game1.board[chr(xCoord+97)][yCoord + 1] is not None:
-    #                 for k in game1.board[chr(xCoord+97)][yCoord + 1].availableMoves:
-    #                     if type(k) == tuple:
-    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((ord(k[0]) - 97) * 60) + 160 + 30, -(k[1] * 60) + 540 + 30), 10)
-    #                     elif k == "CK":
-    #                         if game1.whiteTurn:
-    #                             pygame.draw.circle(gameDisplay, (200,0,0), (((ord('g') - 97) * 60) + 160 + 30, -(1 * 60) + 540 + 30), 10)
-    #                         else:
-    #                             pygame.draw.circle(gameDisplay, (200,0,0), (((ord('g') - 97) * 60) + 160 + 30, -(8 * 60) + 540 + 30), 10)
-
-    #                     elif k == "CQ":
-    #                         if game1.whiteTurn:
-    #                             pygame.draw.circle(gameDisplay, (200,0,0), (((ord('c') - 97) * 60) + 160 + 30, -(1 * 60) + 540 + 30), 10)
-    #                         else:
-    #                             pygame.draw.circle(gameDisplay, (200,0,0), (((ord('c') - 97) * 60) + 160 + 30, -(8 * 60) + 540 + 30), 10)
-    #                     elif k == "EPI":
-    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord + 1) * 60) + 160 + 30, -((yCoord + 1 + 1) * 60) + 540 + 30), 10)
-    #                     elif k == "EPII":
-    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord - 1) * 60) + 160 + 30, -((yCoord + 1 + 1) * 60) + 540 + 30), 10)
-    #                     elif k == "EPIII":
-    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord - 1) * 60) + 160 + 30, -((yCoord + 1 - 1) * 60) + 540 + 30), 10)
-    #                     elif k == "EPIV":
-    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord + 1) * 60) + 160 + 30, -((yCoord + 1 - 1) * 60) + 540 + 30), 10)
-    #                     elif k == "PPr0":
-    #                         if game1.whiteTurn:
-    #                             pygame.draw.circle(gameDisplay, (200,0,0), ((xCoord * 60) + 160 + 30, -((yCoord + 1 + 1) * 60) + 540 + 30), 10)
-    #                         else:
-    #                             pygame.draw.circle(gameDisplay, (200,0,0), ((xCoord * 60) + 160 + 30, -((yCoord + 1 - 1) * 60) + 540 + 30), 10)
-    #                     elif k == "PPrI":
-    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord + 1) * 60) + 160 + 30, -((yCoord + 1 + 1) * 60) + 540 + 30), 10)
-    #                     elif k == "PPrII":
-    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord - 1) * 60) + 160 + 30, -((yCoord + 1 + 1) * 60) + 540 + 30), 10)
-    #                     elif k == "PPrIII":
-    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord - 1) * 60) + 160 + 30, -((yCoord + 1 - 1) * 60) + 540 + 30), 10)
-    #                     elif k == "PPrIV":
-    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord + 1) * 60) + 160 + 30, -((yCoord + 1 - 1) * 60) + 540 + 30), 10)
-
-                    
+                    pygame.draw.circle(gameDisplay, (200,0,0), (((end[0]-1) * 60) + 160 + 30, -(end[1] * 60) + 540 + 30), 10)   
 
     pygame.display.update()
     clock.tick(60)
