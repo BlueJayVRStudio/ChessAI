@@ -18,19 +18,35 @@ class piece:
         self.BlQ = 10
         self.BlK = 11
 
+        self.Names = {self.WhP:"white pawn", self.WhR:"white rook", self.WhKn:"white knight", self.WhB:"white bishop", self.WhQ:"white queen", self.WhK:"white king", self.BlP:"black pawn", self.BlR:"black rook", self.BlKn:"black knight", self.BlB:"black bishop", self.BlQ:"black queen", self.BlK:"black king"}
+
 Piece = piece()
+
+class gameConditions:
+    def __init__(self, wTurn, hasWKM, hasWRQM, hasWRKM, hasBKM, hasBRQM, hasBRKM):
+        self.whiteTurn = wTurn
+        self.hasWhiteKingMoved = hasWKM
+        self.hasWRookQMoved = hasWRQM
+        self.hasWRookKMoved = hasWRKM
+        self.hasBlackKingMoved = hasBKM
+        self.hasBRookQMoved = hasBRQM
+        self.hasBRookKMoved = hasBRKM
+    def getCopy(self):
+        return gameConditions(self.whiteTurn, self.hasWhiteKingMoved, self.hasWRookQMoved, self.hasWRookKMoved, self.hasBlackKingMoved, self.hasBRookQMoved, self.hasBRookKMoved)
+
 
 class game:
     def __init__(self):
-        self.ongoing = True
-        self._checked = False
-        self.win = False
-        self.movesAdded = False
-
-        self.previousMove = []
-        self.whiteTurn = True
+        self.currentConditions = gameConditions(True, False, False, False, False, False, False)
+        self.previousConditions = []
+        
+        # self.movesAdded = False
 
         self.numMoves = 0
+        self.previousMoves = []
+        self.previousTaken = []
+        self.whitePiecesTaken = []
+        self.blackPiecesTaken = []
 
         self.board = {}
         self.availableMoves = {}
@@ -76,7 +92,7 @@ class game:
         keys = list(self.board.keys())
 
         # check if white king is checked
-        if self.whiteTurn:
+        if self.currentConditions.whiteTurn:
             for key in keys:
                 if self.board[key] == Piece.BlR or self.board[key] == Piece.BlQ:
                     # left
@@ -340,15 +356,693 @@ class game:
         return False
 
     
-    def playMove(self, start, end):
-        pass
+    def playMove(self, move):
+        self.previousMoves.append(move)
+        ((start, end), special) = move
+
+        self.previousConditions.append(self.currentConditions)
+        self.currentConditions = self.currentConditions.getCopy()
+
+        if special == "" or special == "WK" or special == "BK" or special == "PPr":
+            if end in self.board:
+                self.previousTaken.append(self.board[end])
+            else:
+                self.previousTaken.append(None)
+            self.board[end] = self.board[start]
+            self.board.pop(start)
+
+        if special == "WK":
+            self.currentConditions.hasWhiteKingMoved = True
+        
+        if special == "BK":
+            self.currentConditions.hasBlackKingMoved = True
+
+        if special == "WQC":
+            self.board[(3, 1)] = Piece.WhK
+            self.board[(4, 1)] = Piece.WhR
+            self.board.pop((1, 1))
+            self.board.pop((5, 1))
+            self.previousTaken.append(None)
+            self.currentConditions.hasWhiteKingMoved = True
+            self.currentConditions.hasWRookQMoved = True
+        
+        if special == "BQC":
+            self.board[(3, 8)] = Piece.WhK
+            self.board[(4, 8)] = Piece.WhR
+            self.board.pop((1, 8))
+            self.board.pop((5, 8))
+            self.previousTaken.append(None)
+            self.currentConditions.hasBlackKingMoved = True
+            self.currentConditions.hasBRookQMoved = True
+        
+        if special == "WKC":
+            self.board[(7, 1)] = Piece.WhK
+            self.board[(6, 1)] = Piece.WhR
+            self.board.pop((8, 1))
+            self.board.pop((5, 1))
+            self.previousTaken.append(None)
+            self.currentConditions.hasWhiteKingMoved = True
+            self.currentConditions.hasWRookKMoved = True
+        
+        if special == "BKC":
+            self.board[(7, 8)] = Piece.BlK
+            self.board[(6, 8)] = Piece.BlR
+            self.board.pop((8, 8))
+            self.board.pop((5, 8))
+            self.previousTaken.append(None)
+            self.currentConditions.hasBlackKingMoved = True
+            self.currentConditions.hasBRookKMoved = True
+        
+        if special == "EP":
+            self.board[end] = self.board[start]
+            self.board.pop(start)
+            self.previousTaken.append(self.board[(end[0], start[1])])
+            self.board.pop((end[0], start[1]))
+        
+        if special == "PPr":
+            while True:
+                promo = input()
+                if promo == 'q':
+                    self.board[end] = Piece.WhQ if self.currentConditions.whiteTurn else Piece.BlQ
+                    break
+                elif promo == 'r':
+                    self.board[end] = Piece.WhR if self.currentConditions.whiteTurn else Piece.BlR
+                    break
+                elif promo == 'b':
+                    self.board[end] = Piece.WhB if self.currentConditions.whiteTurn else Piece.BlB
+                    break
+                elif promo == 'kn':
+                    self.board[end] = Piece.WhKn if self.currentConditions.whiteTurn else Piece.BlKn
+                    break
+
+        
+        self.currentConditions.whiteTurn = not self.currentConditions.whiteTurn
 
     def reverseMove(self):
-        pass
+        self.currentConditions = self.previousConditions.pop()
+        ((start, end), special) = self.previousMoves.pop()
+        previousTaken = self.previousTaken.pop()
 
+        if special == "" or special == "WK" or special == "BK" or special == "PPr":
+            self.board[start] = self.board[end]
+            if previousTaken == None:
+                self.board.pop(end)
+            else:
+                self.board[end] = previousTaken
+        
+        if special == "WQC":
+            self.board[(1, 1)] = Piece.WhR
+            self.board[(5, 1)] = Piece.WhK
+            self.board.pop((3, 1))
+            self.board.pop((4, 1))
+        
+        if special == "BQC":
+            self.board[(1, 8)] = Piece.BlR
+            self.board[(5, 8)] = Piece.BlK
+            self.board.pop((3, 8))
+            self.board.pop((4, 8))
+        
+        if special == "WKC":
+            self.board[(5, 1)] = Piece.WhK
+            self.board[(8, 1)] = Piece.WhR
+            self.board.pop((7, 1))
+            self.board.pop((6, 1))
+        
+        if special == "BKC":
+            self.board[(5, 8)] = Piece.BlK
+            self.board[(8, 8)] = Piece.BlR
+            self.board.pop((7, 8))
+            self.board.pop((6, 8))
+        
+        if special == "EP":
+            self.board[start] = self.board[end]
+            self.board.pop(end)
+            self.board[(end[0], start[1])] = previousTaken
+        
+        if special == "PPr":
+            self.board[start] = Piece.WhP if self.currentConditions.whiteTurn else Piece.BlP
+            
+        
+    # add legal moves
     def addMoves(self):
-        pass
+        keys = list(self.board.keys())
+        self.availableMoves = {}
 
+        # add moves for white
+        if self.currentConditions.whiteTurn:
+            for key in keys:
+                self.availableMoves[key] = []
+
+                if self.board[key] == Piece.WhR or self.board[key] == Piece.WhQ:
+                    # left
+                    x = key[0] - 1
+                    y = key[1]
+                    while x > 0:
+                        if (x, y) not in self.board:                            
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+
+                            x -= 1
+                            continue
+                        
+                        # if the piece in question is a black piece
+                        if (self.board[(x, y)] > 5):
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                        break
+
+                    # right
+                    x = key[0] + 1
+                    y = key[1]
+                    while x < 9:
+                        if (x, y) not in self.board:                            
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+
+                            x += 1
+                            continue
+                        
+                        # if the piece in question is a black piece
+                        if (self.board[(x, y)] > 5):
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                        break
+                    
+                    # down
+                    x = key[0]
+                    y = key[1] - 1
+                    while y > 0:
+                        if (x, y) not in self.board:                            
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+
+                            y -= 1
+                            continue
+                        
+                        # if the piece in question is a black piece
+                        if (self.board[(x, y)] > 5):
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                        break
+                    
+                    # up
+                    x = key[0]
+                    y = key[1] + 1
+                    while y < 9:
+                        if (x, y) not in self.board:                            
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+
+                            y += 1
+                            continue
+                        
+                        # if the piece in question is a black piece
+                        if (self.board[(x, y)] > 5):
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                        break
+                
+                if self.board[key] == Piece.WhB or self.board[key] == Piece.WhQ:
+                    # Diag I
+                    x = key[0] + 1
+                    y = key[1] + 1
+                    
+                    while x < 9 and y < 9:
+                        if (x, y) not in self.board:                            
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+
+                            x += 1
+                            y += 1
+                            continue
+                        
+                        # if the piece in question is a black piece
+                        if (self.board[(x, y)] > 5):
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                        break
+
+                    # Diag II
+                    x = key[0] - 1
+                    y = key[1] + 1
+                    while x > 0 and y < 9:
+                        if (x, y) not in self.board:                            
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+
+                            x -= 1
+                            y += 1
+                            continue
+                        
+                        # if the piece in question is a black piece
+                        if (self.board[(x, y)] > 5):
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                        break
+                    
+                    # Diag III
+                    x = key[0] - 1
+                    y = key[1] - 1
+                    while x > 0 and y > 0:
+                        if (x, y) not in self.board:                            
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+
+                            x -= 1
+                            y -= 1
+                            continue
+                        
+                        # if the piece in question is a black piece
+                        if (self.board[(x, y)] > 5):
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                        break
+                    
+                    # Diag IV
+                    x = key[0] + 1
+                    y = key[1] - 1
+                    while x < 9 and y > 0:
+                        if (x, y) not in self.board:                            
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                            
+                            x += 1
+                            y -= 1
+                            continue
+                        
+                        # if the piece in question is a black piece
+                        if (self.board[(x, y)] > 5):
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                        break
+                
+                if self.board[key] == Piece.WhKn:
+                    x = key[0]
+                    y = key[1]
+                    for knPosition in [(x+1, y+2), (x+2, y+1), (x-1, y+2), (x-2, y+1), (x-1, y-2), (x-2, y-1), (x+1, y-2), (x+2, y-1)]:
+                        if knPosition not in self.board:
+                            self.playMove(((key, knPosition), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, knPosition), ""))
+                            self.reverseMove()
+                        
+                        elif self.board[knPosition] > 5:
+                            self.playMove(((key, knPosition), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, knPosition), ""))
+                            self.reverseMove()
+                
+                if self.board[key] == Piece.WhK:
+                    # [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
+                    x = key[0]
+                    y = key[1]
+                    for kPosition in [(x+1, y+0), (x+1, y+1), (x+0, y+1), (x-1, y+1), (x-1, y+0), (x-1, y-1), (x+0, y-1), (x+1, y-1)]:
+                        if kPosition not in self.board:
+                            self.playMove(((key, kPosition), "WK"))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, kPosition), "WK"))
+                            self.reverseMove()
+                            continue
+                    if not self.currentConditions.hasWhiteKingMoved and not self.currentConditions.hasWRookQMoved:
+                        if (2, 1) not in self.board and (3, 1) not in self.board and (4, 1) not in self.board:
+                            self.playMove(((key, (3, 1)), "WQC"))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (3, 1)), "WQC"))
+                            self.reverseMove()
+                            
+                    if not self.currentConditions.hasWhiteKingMoved and not self.currentConditions.hasWRookKMoved:
+                        if (6, 1) not in self.board and (7, 1) not in self.board:
+                            self.playMove(((key, (7, 1)), "WKC"))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (7, 1)), "WKC"))
+                            self.reverseMove()
+                
+                if self.board[key] == Piece.WhP:
+                    x = key[0]
+                    y = key[1]
+                    # if pawn in starting position
+                    if y == 2:
+                        if (x, y+2) not in self.board:
+                            self.playMove(((key, (x, y+2)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y+2)), ""))
+                            self.reverseMove()
+                    
+                    if (x, y+1) not in self.board:
+                        self.playMove(((key, (x, y+1)), ""))
+                        if not self.checked():
+                            if y+1 < 8:
+                                self.availableMoves[key].append(((key, (x, y+1)), ""))
+                            else:
+                                self.availableMoves[key].append(((key, (x, y+1)), "PPr"))
+                        self.reverseMove()
+                    
+                    if (x+1, y+1) in self.board and self.board[(x+1, y+1)] > 5:
+                        self.playMove(((key, (x+1, y+1)), ""))
+                        if not self.checked():
+                            if y+1 < 8:
+                                self.availableMoves[key].append(((key, (x+1, y+1)), ""))
+                            else: 
+                                self.availableMoves[key].append(((key, (x+1, y+1)), "PPr"))
+                        self.reverseMove()
+                    
+                    if (x-1, y+1) in self.board and self.board[(x-1, y+1)] > 5:
+                        self.playMove(((key, (x-1, y+1)), ""))
+                        if not self.checked():
+                            if y+1 < 8:
+                                self.availableMoves[key].append(((key, (x-1, y+1)), ""))
+                            else:
+                                self.availableMoves[key].append(((key, (x-1, y+1)), "PPr"))
+                        self.reverseMove()
+
+                    # if pawn eligible for en passant
+                    if y == 5:
+                        if (x-1, y) in self.board and self.board[(x-1, y)] == 6 and (x-1, y+1) not in self.board:
+                            ((start, end), special) = self.previousMoves[len(self.previousMoves) - 1]
+                            if start == (x-1, y+2) and end  == (x-1, y):
+                                self.playMove(((key, (x-1, y+1)), "EP"))
+                                if not self.checked():
+                                    self.availableMoves[key].append(((key, (x-1, y+1)), "EP"))
+                                self.reverseMove()
+                        if (x+1, y) in self.board and self.board[(x+1, y)] == 6 and (x+1, y+1) not in self.board:
+                            ((start, end), special) = self.previousMoves[len(self.previousMoves) - 1]
+                            if start == (x+1, y+2) and end  == (x+1, y):
+                                self.playMove(((key, (x+1, y+1)), "EP"))
+                                if not self.checked():
+                                    self.availableMoves[key].append(((key, (x+1, y+1)), "EP"))
+                                self.reverseMove()
+                    
+                if len(self.availableMoves[key]) == 0:
+                    self.availableMoves.pop(key)
+        # add moves for black
+        else:
+            for key in keys:
+                self.availableMoves[key] = []
+
+                if self.board[key] == Piece.BlR or self.board[key] == Piece.BlQ:
+                    # left
+                    x = key[0] - 1
+                    y = key[1]
+                    while x > 0:
+                        if (x, y) not in self.board:                            
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+
+                            x -= 1
+                            continue
+                        
+                        # if the piece in question is a black piece
+                        if (self.board[(x, y)] > 5):
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                        break
+
+                    # right
+                    x = key[0] + 1
+                    y = key[1]
+                    while x < 9:
+                        if (x, y) not in self.board:                            
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+
+                            x += 1
+                            continue
+                        
+                        # if the piece in question is a black piece
+                        if (self.board[(x, y)] > 5):
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                        break
+                    
+                    # down
+                    x = key[0]
+                    y = key[1] - 1
+                    while y > 0:
+                        if (x, y) not in self.board:                            
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+
+                            y -= 1
+                            continue
+                        
+                        # if the piece in question is a black piece
+                        if (self.board[(x, y)] > 5):
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                        break
+                    
+                    # up
+                    x = key[0]
+                    y = key[1] + 1
+                    while y < 9:
+                        if (x, y) not in self.board:                            
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+
+                            y += 1
+                            continue
+                        
+                        # if the piece in question is a black piece
+                        if (self.board[(x, y)] > 5):
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                        break
+                
+                if self.board[key] == Piece.BlB or self.board[key] == Piece.BlQ:
+                    # Diag I
+                    x = key[0] + 1
+                    y = key[1] + 1
+                    while x < 9 and y < 9:
+                        if (x, y) not in self.board:                            
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+
+                            x += 1
+                            y += 1
+                            continue
+                        
+                        # if the piece in question is a black piece
+                        if (self.board[(x, y)] > 5):
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                        break
+
+                    # Diag II
+                    x = key[0] - 1
+                    y = key[1] + 1
+                    while x > 0 and y < 9:
+                        if (x, y) not in self.board:                            
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+
+                            x -= 1
+                            y += 1
+                            continue
+                        
+                        # if the piece in question is a black piece
+                        if (self.board[(x, y)] > 5):
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                        break
+                    
+                    # Diag III
+                    x = key[0] - 1
+                    y = key[1] - 1
+                    while x > 0 and y > 0:
+                        if (x, y) not in self.board:                            
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+
+                            x -= 1
+                            y -= 1
+                            continue
+                        
+                        # if the piece in question is a black piece
+                        if (self.board[(x, y)] > 5):
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                        break
+                    
+                    # Diag IV
+                    x = key[0] + 1
+                    y = key[1] - 1
+                    while x < 9 and y > 0:
+                        if (x, y) not in self.board:                            
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                            
+                            x += 1
+                            y -= 1
+                            continue
+                        
+                        # if the piece in question is a black piece
+                        if (self.board[(x, y)] > 5):
+                            self.playMove(((key, (x, y)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y)), ""))
+                            self.reverseMove()
+                        break
+                
+                if self.board[key] == Piece.BlKn:
+                    x = key[0]
+                    y = key[1]
+                    for knPosition in [(x+1, y+2), (x+2, y+1), (x-1, y+2), (x-2, y+1), (x-1, y-2), (x-2, y-1), (x+1, y-2), (x+2, y-1)]:
+                        if knPosition not in self.board:
+                            self.playMove(((key, knPosition), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, knPosition), ""))
+                            self.reverseMove()
+                        
+                        elif self.board[knPosition] > 5:
+                            self.playMove(((key, knPosition), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, knPosition), ""))
+                            self.reverseMove()
+                
+                if self.board[key] == Piece.BlK:
+                    # [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
+                    x = key[0]
+                    y = key[1]
+                    for kPosition in [(x+1, y+0), (x+1, y+1), (x+0, y+1), (x-1, y+1), (x-1, y+0), (x-1, y-1), (x+0, y-1), (x+1, y-1)]:
+                        if kPosition not in self.board:
+                            self.playMove(((key, kPosition), "BK"))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, kPosition), "BK"))
+                            self.reverseMove()
+                            continue
+                    if not self.currentConditions.hasBlackKingMoved and not self.currentConditions.hasBRookQMoved:
+                        if (2, 8) not in self.board and (3, 8) not in self.board and (4, 8) not in self.board:
+                            self.playMove(((key, (3, 8)), "BQC"))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (3, 8)), "BQC"))
+                            self.reverseMove()
+                            
+                    if not self.currentConditions.hasBlackKingMoved and not self.currentConditions.hasBRookKMoved:
+                        if (6, 8) not in self.board and (7, 8) not in self.board:
+                            self.playMove(((key, (7, 8)), "BKC"))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (7, 8)), "BKC"))
+                            self.reverseMove()
+                
+                if self.board[key] == Piece.BlP:
+                    x = key[0]
+                    y = key[1]
+                    # if pawn in starting position
+                    if y == 7:
+                        if (x, y-2) not in self.board:
+                            self.playMove(((key, (x, y-2)), ""))
+                            if not self.checked():
+                                self.availableMoves[key].append(((key, (x, y-2)), ""))
+                            self.reverseMove()
+                    
+                    if (x, y-1) not in self.board:
+                        self.playMove(((key, (x, y-1)), ""))
+                        if not self.checked():
+                            if y-1 > 1:
+                                self.availableMoves[key].append(((key, (x, y-1)), ""))
+                            else:
+                                self.availableMoves[key].append(((key, (x, y-1)), "PPr"))
+                        self.reverseMove()
+                    
+                    if (x+1, y-1) in self.board and self.board[(x+1, y-1)] <= 5:
+                        self.playMove(((key, (x+1, y-1)), ""))
+                        if not self.checked():
+                            if y-1 > 1:
+                                self.availableMoves[key].append(((key, (x+1, y-1)), ""))
+                            else: 
+                                self.availableMoves[key].append(((key, (x+1, y-1)), "PPr"))
+                        self.reverseMove()
+                    
+                    if (x-1, y-1) in self.board and self.board[(x-1, y-1)] <= 5:
+                        self.playMove(((key, (x-1, y-1)), ""))
+                        if not self.checked():
+                            if y-1 > 1:
+                                self.availableMoves[key].append(((key, (x-1, y-1)), ""))
+                            else:
+                                self.availableMoves[key].append(((key, (x-1, y-1)), "PPr"))
+                        self.reverseMove()
+
+                    # if pawn eligible for en passant
+                    if y == 4:
+                        if (x-1, y) in self.board and self.board[(x-1, y)] == 0 and (x-1, y-1) not in self.board:
+                            ((start, end), special) = self.previousMoves[len(self.previousMoves) - 1]
+                            if start == (x-1, y-2) and end  == (x-1, y):
+                                self.playMove(((key, (x-1, y-1)), "EP"))
+                                if not self.checked():
+                                    self.availableMoves[key].append(((key, (x-1, y-1)), "EP"))
+                                self.reverseMove()
+                        if (x+1, y) in self.board and self.board[(x+1, y)] == 0 and (x+1, y-1) not in self.board:
+                            ((start, end), special) = self.previousMoves[len(self.previousMoves) - 1]
+                            if start == (x+1, y-2) and end  == (x+1, y):
+                                self.playMove(((key, (x+1, y-1)), "EP"))
+                                if not self.checked():
+                                    self.availableMoves[key].append(((key, (x+1, y-1)), "EP"))
+                                self.reverseMove()
+                    
+                if len(self.availableMoves[key]) == 0:
+                    self.availableMoves.pop(key)
 
 # game instance
 import pygame
@@ -364,14 +1058,12 @@ pygame.display.set_caption('Chess')
 
 # initiate game
 game1 = game()
+game1.addMoves()
 
 #input related variables
 drag = None
 drop = None
 desiredMove = None
-
-#logic variables
-legalityChecked = False
 
 # offsets and other properties
 xOffset = 160
@@ -382,12 +1074,10 @@ blackTileRGB = (160, 84, 41)
 whiteTileRGB = (225, 157, 119)
 
 # load images onto a dictionary
+keys = list(Piece.Names.keys())
 pieceImages = {}
-for i in range(ord("a"), ord("h") + 1):
-    for j in range(1, 9):
-        if game1.board[chr(i)][j] is not None:
-            pieceImages[game1.board[chr(i)][j].identity] = pygame.transform.smoothscale\
-                (pygame.image.load("pieces/" + game1.board[chr(i)][j].identity + ".png"), (width, height))
+for i in keys:
+    pieceImages[i] = pygame.transform.smoothscale(pygame.image.load("pieces/" + Piece.Names[i] + ".png"), (width, height))
 
 # create tiles
 rectangles = []
@@ -452,1068 +1142,41 @@ while not crashed:
             desiredMove = [None, None]
             if xEdgeDrag != 0 and yEdgeDrag != 0:
                 if 0 <= xCoordDrag < 8 and 0 <= yCoordDrag < 8:
-                    desiredMove[0] = (chr(97 + xCoordDrag), yCoordDrag + 1)
+                    desiredMove[0] = (xCoordDrag + 1, yCoordDrag + 1)
             if xEdgeDrop != 0 and yEdgeDrop != 0:
                 if 0 <= xCoordDrop < 8 and 0 <= yCoordDrop < 8:
-                    desiredMove[1] = (chr(97 + xCoordDrop), yCoordDrop + 1)
+                    desiredMove[1] = (xCoordDrop + 1, yCoordDrop + 1)
 
             drag = None
             drop = None
 
     ### UPDATE ###
 
-    # add moves for current player
-    # check legality of every available move (filtering step)
-    # check if King is checked
-    # if king is checked and there is no available move, current player is defeated
-    # if king is not checked and there is no available move, the game is drawn
-
-    # white turn
-    # click to drag white piece; should not be able to drag black piece
-    # if un-clicked on top of a valid square, move selected piece to that square and end white turn
-    # update game state
-
-    if game1.ongoing:
-        if not game1.movesAdded:
-            game1.addMoves()
-            game1.movesAdded = True
-
-        if game1.whiteTurn:
-            if not legalityChecked:
-                # check legality
-                temp = None
-                invalid = []
-                for i in range(8):
-                    for j in range(8):
-                        if game1.board[chr(97 + i)][j + 1] is not None:
-                            for k in game1.board[chr(97 + i)][j + 1].availableMoves:
-                                if type(k) == tuple:
-                                    temp = game1.board[k[0]][k[1]]
-                                    game1.board[k[0]][k[1]] = game1.board[chr(97 + i)][j + 1]
-                                    game1.board[k[0]][k[1]].pos = k
-                                    game1.board[chr(97 + i)][j + 1] = None
-
-                                    breaker = False
-                                    for p in range(8):
-                                        if breaker:
-                                            break
-                                        for q in range(8):
-                                            if game1.board[chr(97 + p)][q + 1] is not None:
-                                                if game1.board[chr(97 + p)][q + 1].identity[0] == "b":
-                                                    if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                        invalid.append(k)
-                                                        breaker = True
-                                                        break
-
-                                    game1.board[chr(97 + i)][j + 1] = game1.board[k[0]][k[1]]
-                                    game1.board[chr(97 + i)][j + 1].pos = (chr(97 + i), j + 1)
-                                    game1.board[k[0]][k[1]] = temp
-                                    temp = None
-
-                                elif type(k) == str:
-                                    if k == "CK":
-                                        game1.board['f'][1] = game1.WhRK
-                                        game1.WhRK.pos = ('f', 1)
-                                        game1.board['g'][1] = game1.WhK
-                                        game1.WhK.pos = ('g', 1)
-                                        game1.board['e'][1] = None
-                                        game1.board['h'][1] = None
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "b":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board['e'][1] = game1.WhK
-                                        game1.board['h'][1] = game1.WhRK
-                                        game1.WhK.pos = ('e', 1)
-                                        game1.WhRK.pos = ('h', 1)
-                                        game1.board['f'][1] = None
-                                        game1.board['g'][1] = None
-
-                                        # check for tile the king passes through
-                                        game1.board['f'][1] = game1.WhK
-                                        game1.WhK.pos = ('f', 1)
-                                        game1.board['e'][1] = None
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "b":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            if k not in invalid:
-                                                                invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board['e'][1] = game1.WhK
-                                        game1.WhK.pos = ('e', 1)
-                                        game1.board['f'][1] = None
-
-                                    elif k == "CQ":
-                                        game1.board['d'][1] = game1.WhRQ
-                                        game1.WhRQ.pos = ('d', 1)
-                                        game1.board['c'][1] = game1.WhK
-                                        game1.WhK.pos = ('c', 1)
-                                        game1.board['e'][1] = None
-                                        game1.board['a'][1] = None
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "b":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board['e'][1] = game1.WhK
-                                        game1.board['a'][1] = game1.WhRQ
-                                        game1.WhK.pos = ('e', 1)
-                                        game1.WhRQ.pos = ('a', 1)
-                                        game1.board['c'][1] = None
-                                        game1.board['d'][1] = None
-
-                                        # check for tile the king passes through
-                                        game1.board['d'][1] = game1.WhK
-                                        game1.WhK.pos = ('d', 1)
-                                        game1.board['e'][1] = None
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "b":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            if k not in invalid:
-                                                                invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board['e'][1] = game1.WhK
-                                        game1.WhK.pos = ('e', 1)
-                                        game1.board['d'][1] = None
-
-                                    elif k == "EPI":
-                                        temp = game1.board[chr(97 + i + 1)][j + 1]
-                                        game1.board[chr(97 + i + 1)][j + 2] = game1.board[chr(97 + i)][j + 1]
-                                        game1.board[chr(97 + i)][j + 1] = None
-                                        game1.board[chr(97 + i + 1)][j + 1] = None
-
-                                        game1.board[chr(97 + i + 1)][j + 2].pos = (chr(97 + i + 1), j + 2)
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "b":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board[chr(97 + i + 1)][j + 1] = temp
-                                        game1.board[chr(97 + i)][j + 1] = game1.board[chr(97 + i + 1)][j + 2]
-                                        game1.board[chr(97 + i + 1)][j + 2] = None
-
-                                        game1.board[chr(97 + i)][j + 1].pos = (chr(97 + i), j + 1)
-                                        temp = None
-
-                                    elif k == "EPII":
-                                        temp = game1.board[chr(97 + i - 1)][j + 1]
-                                        game1.board[chr(97 + i - 1)][j + 2] = game1.board[chr(97 + i)][j + 1]
-                                        game1.board[chr(97 + i)][j + 1] = None
-                                        game1.board[chr(97 + i - 1)][j + 1] = None
-
-                                        game1.board[chr(97 + i - 1)][j + 2].pos = (chr(97 + i - 1), j + 2)
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "b":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board[chr(97 + i - 1)][j + 1] = temp
-                                        game1.board[chr(97 + i)][j + 1] = game1.board[chr(97 + i - 1)][j + 2]
-                                        game1.board[chr(97 + i - 1)][j + 2] = None
-
-                                        game1.board[chr(97 + i)][j + 1].pos = (chr(97 + i), j + 1)
-                                        temp = None
-
-                                    elif k == "PPr0":
-                                        game1.board[chr(97 + i)][j + 2] = game1.board[chr(97 + i)][j + 1]
-                                        game1.board[chr(97 + i)][j + 1] = None
-
-                                        game1.board[chr(97 + i)][j + 2].pos = (chr(97 + i), j + 2)
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "b":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board[chr(97 + i)][j + 1] = game1.board[chr(97 + i)][j + 2]
-                                        game1.board[chr(97 + i)][j + 2] = None
-
-                                        game1.board[chr(97 + i)][j + 1].pos = (chr(97 + i), j + 1)
-
-                                    elif k == "PPrI":
-                                        temp = game1.board[chr(97 + i + 1)][j + 2]
-                                        game1.board[chr(97 + i + 1)][j + 2] = game1.board[chr(97 + i)][j + 1]
-                                        game1.board[chr(97 + i + 1)][j + 2].pos = (chr(97 + i + 1), j + 2)
-                                        game1.board[chr(97 + i)][j + 1] = None
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "b":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board[chr(97 + i)][j + 1] = game1.board[chr(97 + i + 1)][j + 2]
-                                        game1.board[chr(97 + i + 1)][j + 2] = temp
-                                        game1.board[chr(97 + i)][j + 1].pos = (chr(97 + i), j + 1)
-                                        temp = None
-
-                                    elif k == "PPrII":
-                                        temp = game1.board[chr(97 + i - 1)][j + 2]
-                                        game1.board[chr(97 + i - 1)][j + 2] = game1.board[chr(97 + i)][j + 1]
-                                        game1.board[chr(97 + i - 1)][j + 2].pos = (chr(97 + i - 1), j + 2)
-                                        game1.board[chr(97 + i)][j + 1] = None
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "b":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board[chr(97 + i)][j + 1] = game1.board[chr(97 + i - 1)][j + 2]
-                                        game1.board[chr(97 + i - 1)][j + 2] = temp
-                                        game1.board[chr(97 + i)][j + 1].pos = (chr(97 + i), j + 1)
-                                        temp = None
-
-                            for k in invalid:
-                                game1.board[chr(97 + i)][j + 1].availableMoves.remove(k)
-
-                            invalid = []
-                legalityChecked = True
-
-            # if no available moves
-            movesAvailable = False
-            breaker = False
-            for i in range(8):
-                if breaker:
-                    break
-                for j in range(8):
-                    if game1.board[chr(97 + i)][j + 1] is not None:
-                        if game1.board[chr(97 + i)][j + 1].availableMoves == []:
-                            pass
-                        else:
-                            movesAvailable = True
-                            breaker = True
-                            break
-            if movesAvailable:
-                pass
+    availableMoves = game1.availableMoves
+    availableKeys = list(availableMoves.keys())
+    if len(availableKeys) == 0:
+        if game1.checked():
+            if game1.currentConditions.whiteTurn:
+                # black victory
+                print("black wins")
+                break
             else:
-                game1.ongoing = False
-                desiredMove = None
-
-            # respond to player action (white)
-            if desiredMove is not None:
-                if None not in desiredMove:
-                    if game1.board[desiredMove[0][0]][desiredMove[0][1]] is not None:
-                        if desiredMove[1] in game1.board[desiredMove[0][0]][desiredMove[0][1]].availableMoves:
-                            # move to desired position
-                            if game1.board[desiredMove[1][0]][desiredMove[1][1]] is not None:
-                                game1.discard.append(game1.board[desiredMove[1][0]][desiredMove[1][1]])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]] = game1.board[desiredMove[0][0]][desiredMove[0][1]]
-                            game1.board[desiredMove[0][0]][desiredMove[0][1]] = None
-
-                            # update game variables
-                            legalityChecked = False
-                            game1.numMoves += 1
-                            game1.movesAdded = False
-                            game1.whiteTurn = False
-
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].prevPos = (desiredMove[0], game1.numMoves)
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].pos = desiredMove[1]
-                            game1.previousMove.append(desiredMove)
-
-                            # clear available moves
-                            for i in range(8):
-                                for j in range(8):
-                                    if game1.board[chr(97 + i)][j + 1] is not None:
-                                        game1.board[chr(97 + i)][j + 1].availableMoves = []
-
-                        elif desiredMove[1] == ('g', 1) and "CK" in game1.board[desiredMove[0][0]][desiredMove[0][1]].availableMoves:
-                            # perform king-side castle
-                            game1.board['f'][1] = game1.WhRK
-                            game1.board['g'][1] = game1.WhK
-                            game1.WhRK.pos = ('f', 1)
-                            game1.WhK.pos = ('g', 1)
-
-                            game1.board['e'][1] = None
-                            game1.board['h'][1] = None
-
-                            # update game variables
-                            legalityChecked = False
-                            game1.numMoves += 1
-                            game1.movesAdded = False
-                            game1.whiteTurn = False
-
-                            game1.WhRK.prevPos = (('h', 1), game1.numMoves)
-                            game1.WhK.prevPos = (('e', 1), game1.numMoves)
-
-                            game1.previousMove.append("CK")
-
-                            # clear available moves
-                            for i in range(8):
-                                for j in range(8):
-                                    if game1.board[chr(97 + i)][j + 1] is not None:
-                                        game1.board[chr(97 + i)][j + 1].availableMoves = []
-
-                        elif desiredMove[1] == ('c', 1) and "CQ" in game1.board[desiredMove[0][0]][desiredMove[0][1]].availableMoves:
-                            # perform king-side castle
-                            game1.board['d'][1] = game1.WhRQ
-                            game1.board['c'][1] = game1.WhK
-                            game1.WhRQ.pos = ('d', 1)
-
-                            game1.WhK.pos = ('c', 1)
-
-                            game1.board['e'][1] = None
-                            game1.board['a'][1] = None
-
-                            # update game variables
-                            legalityChecked = False
-                            game1.numMoves += 1
-                            game1.movesAdded = False
-                            game1.whiteTurn = False
-
-                            game1.WhRQ.prevPos = (('a', 1), game1.numMoves)
-                            game1.WhK.prevPos = (('e', 1), game1.numMoves)
-
-                            game1.previousMove.append("CQ")
-
-                            # clear available moves
-                            for i in range(8):
-                                for j in range(8):
-                                    if game1.board[chr(97 + i)][j + 1] is not None:
-                                        game1.board[chr(97 + i)][j + 1].availableMoves = []
-
-                        elif game1.newX(desiredMove[0][0], 1) == desiredMove[1][0] and desiredMove[0][1] + 1 == desiredMove[1][1] and "EPI" in game1.board[desiredMove[0][0]][desiredMove[0][1]].availableMoves:
-                            game1.discard.append(game1.board[game1.newX(desiredMove[0][0], 1)][desiredMove[0][1]])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]] = game1.board[desiredMove[0][0]][desiredMove[0][1]]
-                            game1.board[desiredMove[0][0]][desiredMove[0][1]] = None
-                            game1.board[game1.newX(desiredMove[0][0], 1)][desiredMove[0][1]] = None
-
-                            # update game variables
-                            legalityChecked = False
-                            game1.numMoves += 1
-                            game1.movesAdded = False
-                            game1.whiteTurn = False
-
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].pos = (desiredMove[1][0], desiredMove[1][1])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].prevPos = ((desiredMove[0][0], desiredMove[0][1]), game1.numMoves)
-
-                            # clear available moves
-                            for i in range(8):
-                                for j in range(8):
-                                    if game1.board[chr(97 + i)][j + 1] is not None:
-                                        game1.board[chr(97 + i)][j + 1].availableMoves = []
-
-                        elif game1.newX(desiredMove[0][0], -1) == desiredMove[1][0] and desiredMove[0][1] + 1 == desiredMove[1][1] and "EPII" in game1.board[desiredMove[0][0]][desiredMove[0][1]].availableMoves:
-                            game1.discard.append(game1.board[game1.newX(desiredMove[0][0], -1)][desiredMove[0][1]])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]] = game1.board[desiredMove[0][0]][desiredMove[0][1]]
-                            game1.board[desiredMove[0][0]][desiredMove[0][1]] = None
-                            game1.board[game1.newX(desiredMove[0][0], -1)][desiredMove[0][1]] = None
-
-                            # update game variables
-                            legalityChecked = False
-                            game1.numMoves += 1
-                            game1.movesAdded = False
-                            game1.whiteTurn = False
-
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].pos = (desiredMove[1][0], desiredMove[1][1])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].prevPos = ((desiredMove[0][0], desiredMove[0][1]), game1.numMoves)
-
-                            # clear available moves
-                            for i in range(8):
-                                for j in range(8):
-                                    if game1.board[chr(97 + i)][j + 1] is not None:
-                                        game1.board[chr(97 + i)][j + 1].availableMoves = []
-
-                        elif desiredMove[0][0] == desiredMove[1][0] and desiredMove[0][1] + 1 == desiredMove[1][1] and "PPr0" in game1.board[desiredMove[0][0]][desiredMove[0][1]].availableMoves:
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]] = game1.board[desiredMove[0][0]][desiredMove[0][1]]
-                            game1.board[desiredMove[0][0]][desiredMove[0][1]] = None
-
-                            # update game variables
-                            legalityChecked = False
-                            game1.numMoves += 1
-                            game1.movesAdded = False
-                            game1.whiteTurn = False
-
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].pos = (desiredMove[1][0], desiredMove[1][1])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].prevPos = ((desiredMove[0][0], desiredMove[0][1]), game1.numMoves)
-
-                            while True:
-                                promotion = input()
-                                if promotion == 'k':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "white knight"
-                                elif promotion == 'b':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "white bishop"
-                                elif promotion == 'r':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "white rook"
-                                elif promotion == 'q':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "white queen"
-                                else:
-                                    continue
-                                break
-
-                            # clear available moves
-                            for i in range(8):
-                                for j in range(8):
-                                    if game1.board[chr(97 + i)][j + 1] is not None:
-                                        game1.board[chr(97 + i)][j + 1].availableMoves = []
-
-                        elif game1.newX(desiredMove[0][0], 1) == desiredMove[1][0] and desiredMove[0][1] + 1 == desiredMove[1][1] and "PPrI" in game1.board[desiredMove[0][0]][desiredMove[0][1]].availableMoves:
-                            game1.discard.append(game1.board[desiredMove[1][0]][desiredMove[1][1]])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]] = game1.board[desiredMove[0][0]][desiredMove[0][1]]
-                            game1.board[desiredMove[0][0]][desiredMove[0][1]] = None
-
-                            # update game variables
-                            legalityChecked = False
-                            game1.numMoves += 1
-                            game1.movesAdded = False
-                            game1.whiteTurn = False
-
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].pos = (desiredMove[1][0], desiredMove[1][1])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].prevPos = ((desiredMove[0][0], desiredMove[0][1]), game1.numMoves)
-
-                            while True:
-                                promotion = input()
-                                if promotion == 'k':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "white knight"
-                                elif promotion == 'b':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "white bishop"
-                                elif promotion == 'r':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "white rook"
-                                elif promotion == 'q':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "white queen"
-                                else:
-                                    continue
-                                break
-
-                            # clear available moves
-                            for i in range(8):
-                                for j in range(8):
-                                    if game1.board[chr(97 + i)][j + 1] is not None:
-                                        game1.board[chr(97 + i)][j + 1].availableMoves = []
-
-                        elif game1.newX(desiredMove[0][0], -1) == desiredMove[1][0] and desiredMove[0][1] + 1 == desiredMove[1][1] and "PPrII" in game1.board[desiredMove[0][0]][desiredMove[0][1]].availableMoves:
-                            game1.discard.append(game1.board[desiredMove[1][0]][desiredMove[1][1]])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]] = game1.board[desiredMove[0][0]][desiredMove[0][1]]
-                            game1.board[desiredMove[0][0]][desiredMove[0][1]] = None
-
-                            # update game variables
-                            legalityChecked = False
-                            game1.numMoves += 1
-                            game1.movesAdded = False
-                            game1.whiteTurn = False
-
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].pos = (desiredMove[1][0], desiredMove[1][1])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].prevPos = ((desiredMove[0][0], desiredMove[0][1]), game1.numMoves)
-
-                            while True:
-                                promotion = input()
-                                if promotion == 'k':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "white knight"
-                                elif promotion == 'b':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "white bishop"
-                                elif promotion == 'r':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "white rook"
-                                elif promotion == 'q':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "white queen"
-                                else:
-                                    continue
-                                break
-
-                            # clear available moves
-                            for i in range(8):
-                                for j in range(8):
-                                    if game1.board[chr(97 + i)][j + 1] is not None:
-                                        game1.board[chr(97 + i)][j + 1].availableMoves = []
-            desiredMove = None
-
+                # white victory
+                print("white wins")
+                break
+        # draw
         else:
-            if not legalityChecked:
-                # check legality
-                temp = None
-                invalid = []
-                for i in range(8):
-                    for j in range(8):
-                        if game1.board[chr(97 + i)][j + 1] is not None:
-                            for k in game1.board[chr(97 + i)][j + 1].availableMoves:
-                                if type(k) == tuple:
-                                    temp = game1.board[k[0]][k[1]]
-                                    game1.board[k[0]][k[1]] = game1.board[chr(97 + i)][j + 1]
-                                    game1.board[k[0]][k[1]].pos = k
-                                    game1.board[chr(97 + i)][j + 1] = None
-
-                                    breaker = False
-                                    for p in range(8):
-                                        if breaker:
-                                            break
-                                        for q in range(8):
-                                            if game1.board[chr(97 + p)][q + 1] is not None:
-                                                if game1.board[chr(97 + p)][q + 1].identity[0] == "w":
-                                                    if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                        invalid.append(k)
-                                                        breaker = True
-                                                        break
-
-                                    game1.board[chr(97 + i)][j + 1] = game1.board[k[0]][k[1]]
-                                    game1.board[chr(97 + i)][j + 1].pos = (chr(97 + i), j + 1)
-                                    game1.board[k[0]][k[1]] = temp
-                                    temp = None
-
-                                elif type(k) == str:
-                                    if k == "CK":
-                                        game1.board['f'][8] = game1.BlRK
-                                        game1.BlRK.pos = ('f', 8)
-                                        game1.board['g'][8] = game1.BlK
-                                        game1.BlK.pos = ('g', 8)
-                                        game1.board['e'][8] = None
-                                        game1.board['h'][8] = None
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "w":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board['e'][8] = game1.BlK
-                                        game1.board['h'][8] = game1.BlRK
-                                        game1.BlK.pos = ('e', 8)
-                                        game1.BlRK.pos = ('h', 8)
-                                        game1.board['f'][8] = None
-                                        game1.board['g'][8] = None
-
-                                        # check for tile the king passes through
-                                        game1.board['f'][8] = game1.BlK
-                                        game1.BlK.pos = ('f', 8)
-                                        game1.board['e'][8] = None
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "w":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            if k not in invalid:
-                                                                invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board['e'][8] = game1.BlK
-                                        game1.BlK.pos = ('e', 8)
-                                        game1.board['f'][8] = None
-
-                                    elif k == "CQ":
-                                        game1.board['d'][8] = game1.BlRQ
-                                        game1.BlRQ.pos = ('d', 8)
-                                        game1.board['c'][8] = game1.BlK
-                                        game1.BlK.pos = ('c', 8)
-                                        game1.board['e'][8] = None
-                                        game1.board['a'][8] = None
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "w":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board['e'][8] = game1.BlK
-                                        game1.board['a'][8] = game1.BlRQ
-                                        game1.BlK.pos = ('e', 8)
-                                        game1.BlRQ.pos = ('a', 8)
-                                        game1.board['c'][8] = None
-                                        game1.board['d'][8] = None
-
-                                        # check for tile the king passes through
-                                        game1.board['d'][8] = game1.BlK
-                                        game1.BlK.pos = ('d', 8)
-                                        game1.board['e'][8] = None
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "w":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            if k not in invalid:
-                                                                invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board['e'][8] = game1.BlK
-                                        game1.BlK.pos = ('e', 8)
-                                        game1.board['d'][8] = None
-
-                                    elif k == "EPIII":
-                                        temp = game1.board[chr(97 + i - 1)][j + 1]
-                                        game1.board[chr(97 + i - 1)][j + 1 - 1] = game1.board[chr(97 + i)][j + 1]
-                                        game1.board[chr(97 + i)][j + 1] = None
-                                        game1.board[chr(97 + i - 1)][j + 1] = None
-
-                                        game1.board[chr(97 + i - 1)][j + 1 - 1].pos = (chr(97 + i - 1), j + 1 - 1)
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "w":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board[chr(97 + i - 1)][j + 1] = temp
-                                        game1.board[chr(97 + i)][j + 1] = game1.board[chr(97 + i - 1)][j + 1 - 1]
-                                        game1.board[chr(97 + i - 1)][j + 1 - 1] = None
-
-                                        game1.board[chr(97 + i)][j + 1].pos = (chr(97 + i), j + 1)
-                                        temp = None
-
-                                    elif k == "EPIV":
-                                        temp = game1.board[chr(97 + i + 1)][j + 1]
-                                        game1.board[chr(97 + i + 1)][j + 1 - 1] = game1.board[chr(97 + i)][j + 1]
-                                        game1.board[chr(97 + i)][j + 1] = None
-                                        game1.board[chr(97 + i + 1)][j + 1] = None
-
-                                        game1.board[chr(97 + i + 1)][j + 1 - 1].pos = (chr(97 + i + 1), j + 1 - 1)
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "w":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board[chr(97 + i + 1)][j + 1] = temp
-                                        game1.board[chr(97 + i)][j + 1] = game1.board[chr(97 + i + 1)][j + 1 - 1]
-                                        game1.board[chr(97 + i + 1)][j + 1 - 1] = None
-
-                                        game1.board[chr(97 + i)][j + 1].pos = (chr(97 + i), j + 1)
-                                        temp = None
-
-                                    elif k == "PPr0":
-                                        game1.board[chr(97 + i)][j + 1 - 1] = game1.board[chr(97 + i)][j + 1]
-                                        game1.board[chr(97 + i)][j + 1] = None
-
-                                        game1.board[chr(97 + i)][j + 1 - 1].pos = (chr(97 + i), j + 1 - 1)
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "w":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board[chr(97 + i)][j + 1] = game1.board[chr(97 + i)][j + 1 - 1]
-                                        game1.board[chr(97 + i)][j + 1 - 1] = None
-
-                                        game1.board[chr(97 + i)][j + 1].pos = (chr(97 + i), j + 1)
-
-                                    elif k == "PPrIII":
-                                        temp = game1.board[chr(97 + i - 1)][j + 1 - 1]
-                                        game1.board[chr(97 + i - 1)][j + 1 - 1] = game1.board[chr(97 + i)][j + 1]
-                                        game1.board[chr(97 + i - 1)][j + 1 - 1].pos = (chr(97 + i - 1), j + 1 - 1)
-                                        game1.board[chr(97 + i)][j + 1] = None
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "w":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board[chr(97 + i)][j + 1] = game1.board[chr(97 + i - 1)][j + 1 - 1]
-                                        game1.board[chr(97 + i - 1)][j + 1 - 1] = temp
-                                        game1.board[chr(97 + i)][j + 1].pos = (chr(97 + i), j + 1)
-                                        temp = None
-
-                                    elif k == "PPrIV":
-                                        temp = game1.board[chr(97 + i + 1)][j + 1 - 1]
-                                        game1.board[chr(97 + i + 1)][j + 1 - 1] = game1.board[chr(97 + i)][j + 1]
-                                        game1.board[chr(97 + i + 1)][j + 1 - 1].pos = (chr(97 + i + 1), j + 1 - 1)
-                                        game1.board[chr(97 + i)][j + 1] = None
-
-                                        breaker = False
-                                        for p in range(8):
-                                            if breaker:
-                                                break
-                                            for q in range(8):
-                                                if game1.board[chr(97 + p)][q + 1] is not None:
-                                                    if game1.board[chr(97 + p)][q + 1].identity[0] == "w":
-                                                        if game1.checks(game1.board[chr(97 + p)][q + 1]) is not None:
-                                                            invalid.append(k)
-                                                            breaker = True
-                                                            break
-
-                                        game1.board[chr(97 + i)][j + 1] = game1.board[chr(97 + i + 1)][j + 1 - 1]
-                                        game1.board[chr(97 + i + 1)][j + 1 - 1] = temp
-                                        game1.board[chr(97 + i)][j + 1].pos = (chr(97 + i), j + 1)
-                                        temp = None
-
-                            for k in invalid:
-                                game1.board[chr(97 + i)][j + 1].availableMoves.remove(k)
-
-                            invalid = []
-                legalityChecked = True
-
-            # if no available moves
-            movesAvailable = False
-            breaker = False
-            for i in range(8):
-                if breaker:
-                    break
-                for j in range(8):
-                    if game1.board[chr(97 + i)][j + 1] is not None:
-                        if game1.board[chr(97 + i)][j + 1].availableMoves == []:
-                            pass
-                        else:
-                            movesAvailable = True
-                            breaker = True
-                            break
-            if movesAvailable:
-                pass
-            else:
-                game1.ongoing = False
-                desiredMove = None
-
-            # respond to player action (black)
-            if desiredMove is not None:
-                if None not in desiredMove:
-                    if game1.board[desiredMove[0][0]][desiredMove[0][1]] is not None:
-                        if desiredMove[1] in game1.board[desiredMove[0][0]][desiredMove[0][1]].availableMoves:
-                            # move to desired position
-                            if game1.board[desiredMove[1][0]][desiredMove[1][1]] is not None:
-                                game1.discard.append(game1.board[desiredMove[1][0]][desiredMove[1][1]])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]] = game1.board[desiredMove[0][0]][desiredMove[0][1]]
-                            game1.board[desiredMove[0][0]][desiredMove[0][1]] = None
-
-                            # update game variables
-                            legalityChecked = False
-                            game1.numMoves += 1
-                            game1.movesAdded = False
-                            game1.whiteTurn = True
-
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].prevPos = (desiredMove[0], game1.numMoves)
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].pos = desiredMove[1]
-                            game1.previousMove.append(desiredMove)
-
-                            # clear available moves
-                            for i in range(8):
-                                for j in range(8):
-                                    if game1.board[chr(97 + i)][j + 1] is not None:
-                                        game1.board[chr(97 + i)][j + 1].availableMoves = []
-
-                        elif desiredMove[1] == ('g', 8) and "CK" in game1.board[desiredMove[0][0]][desiredMove[0][1]].availableMoves:
-                            # perform king-side castle
-                            game1.board['f'][8] = game1.BlRK
-                            game1.board['g'][8] = game1.BlK
-                            game1.BlRK.pos = ('f', 8)
-                            game1.BlK.pos = ('g', 8)
-
-                            game1.board['e'][8] = None
-                            game1.board['h'][8] = None
-
-                            # update game variables
-                            legalityChecked = False
-                            game1.numMoves += 1
-                            game1.movesAdded = False
-                            game1.whiteTurn = True
-
-                            game1.BlRK.prevPos = (('h', 8), game1.numMoves)
-                            game1.BlK.prevPos = (('e', 8), game1.numMoves)
-
-                            game1.previousMove.append("CK")
-
-                            # clear available moves
-                            for i in range(8):
-                                for j in range(8):
-                                    if game1.board[chr(97 + i)][j + 1] is not None:
-                                        game1.board[chr(97 + i)][j + 1].availableMoves = []
-
-                        elif desiredMove[1] == ('c', 8) and "CQ" in game1.board[desiredMove[0][0]][desiredMove[0][1]].availableMoves:
-                            # perform king-side castle
-                            game1.board['d'][8] = game1.BlRQ
-                            game1.board['c'][8] = game1.BlK
-                            game1.BlRQ.pos = ('d', 8)
-
-                            game1.BlK.pos = ('c', 8)
-
-                            game1.board['e'][8] = None
-                            game1.board['a'][8] = None
-
-                            # update game variables
-                            legalityChecked = False
-                            game1.numMoves += 1
-                            game1.movesAdded = False
-                            game1.whiteTurn = True
-
-                            game1.BlRQ.prevPos = (('a', 8), game1.numMoves)
-                            game1.BlK.prevPos = (('e', 8), game1.numMoves)
-
-                            game1.previousMove.append("CQ")
-
-                            # clear available moves
-                            for i in range(8):
-                                for j in range(8):
-                                    if game1.board[chr(97 + i)][j + 1] is not None:
-                                        game1.board[chr(97 + i)][j + 1].availableMoves = []
-
-                        elif game1.newX(desiredMove[0][0], -1) == desiredMove[1][0] and desiredMove[0][1] - 1 == desiredMove[1][1] and "EPIII" in game1.board[desiredMove[0][0]][desiredMove[0][1]].availableMoves:
-                            game1.discard.append(game1.board[game1.newX(desiredMove[0][0], -1)][desiredMove[0][1]])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]] = game1.board[desiredMove[0][0]][desiredMove[0][1]]
-                            game1.board[desiredMove[0][0]][desiredMove[0][1]] = None
-                            game1.board[game1.newX(desiredMove[0][0], -1)][desiredMove[0][1]] = None
-
-                            # update game variables
-                            legalityChecked = False
-                            game1.numMoves += 1
-                            game1.movesAdded = False
-                            game1.whiteTurn = True
-
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].pos = (desiredMove[1][0], desiredMove[1][1])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].prevPos = ((desiredMove[0][0], desiredMove[0][1]), game1.numMoves)
-
-                            # clear available moves
-                            for i in range(8):
-                                for j in range(8):
-                                    if game1.board[chr(97 + i)][j + 1] is not None:
-                                        game1.board[chr(97 + i)][j + 1].availableMoves = []
-
-                        elif game1.newX(desiredMove[0][0], 1) == desiredMove[1][0] and desiredMove[0][1] - 1 == desiredMove[1][1] and "EPIV" in game1.board[desiredMove[0][0]][desiredMove[0][1]].availableMoves:
-                            game1.discard.append(game1.board[game1.newX(desiredMove[0][0], 1)][desiredMove[0][1]])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]] = game1.board[desiredMove[0][0]][desiredMove[0][1]]
-                            game1.board[desiredMove[0][0]][desiredMove[0][1]] = None
-                            game1.board[game1.newX(desiredMove[0][0], 1)][desiredMove[0][1]] = None
-
-                            # update game variables
-                            legalityChecked = False
-                            game1.numMoves += 1
-                            game1.movesAdded = False
-                            game1.whiteTurn = True
-
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].pos = (desiredMove[1][0], desiredMove[1][1])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].prevPos = ((desiredMove[0][0], desiredMove[0][1]), game1.numMoves)
-
-                            # clear available moves
-                            for i in range(8):
-                                for j in range(8):
-                                    if game1.board[chr(97 + i)][j + 1] is not None:
-                                        game1.board[chr(97 + i)][j + 1].availableMoves = []
-
-                        elif desiredMove[0][0] == desiredMove[1][0] and desiredMove[0][1] - 1 == desiredMove[1][1] and "PPr0" in game1.board[desiredMove[0][0]][desiredMove[0][1]].availableMoves:
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]] = game1.board[desiredMove[0][0]][desiredMove[0][1]]
-                            game1.board[desiredMove[0][0]][desiredMove[0][1]] = None
-
-                            # update game variables
-                            legalityChecked = False
-                            game1.numMoves += 1
-                            game1.movesAdded = False
-                            game1.whiteTurn = True
-
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].pos = (desiredMove[1][0], desiredMove[1][1])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].prevPos = ((desiredMove[0][0], desiredMove[0][1]), game1.numMoves)
-
-                            while True:
-                                promotion = input()
-                                if promotion == 'k':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "black knight"
-                                elif promotion == 'b':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "black bishop"
-                                elif promotion == 'r':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "black rook"
-                                elif promotion == 'q':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "black queen"
-                                else:
-                                    continue
-                                break
-
-                            # clear available moves
-                            for i in range(8):
-                                for j in range(8):
-                                    if game1.board[chr(97 + i)][j + 1] is not None:
-                                        game1.board[chr(97 + i)][j + 1].availableMoves = []
-
-                        elif game1.newX(desiredMove[0][0], -1) == desiredMove[1][0] and desiredMove[0][1] - 1 == desiredMove[1][1] and "PPrIII" in game1.board[desiredMove[0][0]][desiredMove[0][1]].availableMoves:
-                            game1.discard.append(game1.board[desiredMove[1][0]][desiredMove[1][1]])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]] = game1.board[desiredMove[0][0]][desiredMove[0][1]]
-                            game1.board[desiredMove[0][0]][desiredMove[0][1]] = None
-
-                            # update game variables
-                            legalityChecked = False
-                            game1.numMoves += 1
-                            game1.movesAdded = False
-                            game1.whiteTurn = True
-
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].pos = (desiredMove[1][0], desiredMove[1][1])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].prevPos = ((desiredMove[0][0], desiredMove[0][1]), game1.numMoves)
-
-                            while True:
-                                promotion = input()
-                                if promotion == 'k':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "black knight"
-                                elif promotion == 'b':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "black bishop"
-                                elif promotion == 'r':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "black rook"
-                                elif promotion == 'q':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "black queen"
-                                else:
-                                    continue
-                                break
-
-                            # clear available moves
-                            for i in range(8):
-                                for j in range(8):
-                                    if game1.board[chr(97 + i)][j + 1] is not None:
-                                        game1.board[chr(97 + i)][j + 1].availableMoves = []
-
-                        elif game1.newX(desiredMove[0][0], 1) == desiredMove[1][0] and desiredMove[0][1] - 1 == desiredMove[1][1] and "PPrIV" in game1.board[desiredMove[0][0]][desiredMove[0][1]].availableMoves:
-                            game1.discard.append(game1.board[desiredMove[1][0]][desiredMove[1][1]])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]] = game1.board[desiredMove[0][0]][desiredMove[0][1]]
-                            game1.board[desiredMove[0][0]][desiredMove[0][1]] = None
-
-                            # update game variables
-                            legalityChecked = False
-                            game1.numMoves += 1
-                            game1.movesAdded = False
-                            game1.whiteTurn = True
-
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].pos = (desiredMove[1][0], desiredMove[1][1])
-                            game1.board[desiredMove[1][0]][desiredMove[1][1]].prevPos = ((desiredMove[0][0], desiredMove[0][1]), game1.numMoves)
-
-                            while True:
-                                promotion = input()
-                                if promotion == 'k':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "black knight"
-                                elif promotion == 'b':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "black bishop"
-                                elif promotion == 'r':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "black rook"
-                                elif promotion == 'q':
-                                    game1.board[desiredMove[1][0]][desiredMove[1][1]].identity = "black queen"
-                                else:
-                                    continue
-                                break
-
-                            # clear available moves
-                            for i in range(8):
-                                for j in range(8):
-                                    if game1.board[chr(97 + i)][j + 1] is not None:
-                                        game1.board[chr(97 + i)][j + 1].availableMoves = []
-            desiredMove = None
+            print("draw")
+            break
+
+    if desiredMove is not None: # and it is a valid move
+        # play move
+        print(desiredMove)
+        # add new moves
+        desiredMove = None
     else:
-        if game1.whiteTurn:
-            for i in range(8):
-                for j in range(8):
-                    if game1.board[chr(97 + i)][j + 1] is not None:
-                        if game1.board[chr(97 + i)][j + 1].identity[0] == "b":
-                            if game1.checks(game1.board[chr(97 + i)][j + 1]) is not None:
-                                game1.checked = True
-        if not game1.whiteTurn:
-            for i in range(8):
-                for j in range(8):
-                    if game1.board[chr(97 + i)][j + 1] is not None:
-                        if game1.board[chr(97 + i)][j + 1].identity[0] == "w":
-                            if game1.checks(game1.board[chr(97 + i)][j + 1]) is not None:
-                                game1.checked = True
-
-        if game1.whiteTurn and game1.checked:
-            print("black wins")
-        elif game1.whiteTurn and not game1.checked:
-            print("draw")
-        elif not game1.whiteTurn and game1.checked:
-            print("white wins")
-        elif not game1.whiteTurn and not game1.checked:
-            print("draw")
-        crashed = True
+        pass
+    
 
     ### RENDER ###
 
@@ -1542,64 +1205,72 @@ while not crashed:
         # calculate board position
         xEdge = (drag[0]-xOffset) % width
         # x: 0 - 7
-        xCoord = math.floor((drag[0]-xOffset)/width)
+        xCoord = math.floor((drag[0]-xOffset)/width) + 1
         yEdge = (drag[1]-yOffset) % height
         # y: 0 - 7
-        yCoord = 7 - math.floor((drag[1]-yOffset)/height)
+        yCoord = 7 - math.floor((drag[1]-yOffset)/height) + 1
 
-    for i in range(ord("a"), ord("h") + 1):
-        for j in range(1, 9):
-            if game1.board[chr(i)][j] is not None:
-                if drag is None:
-                    gameDisplay.blit(pieceImages[game1.board[chr(i)][j].identity], (((i - 97) * width) + xOffset, -(j * height) + (height*8+yOffset)))
+        # print((xCoord, yCoord))
 
-                else:
+    for i in list(game1.board.keys()):
+        if drag is None:
+            gameDisplay.blit(pieceImages[game1.board[i]], (((i[0]-1) * width) + xOffset, -(i[1] * height) + (height*8+yOffset)))
+        else:
+            if xCoord != i[0] or yCoord != i[1]:
+                gameDisplay.blit(pieceImages[game1.board[i]], (((i[0]-1) * width) + xOffset, -(i[1] * height) + (height*8+yOffset)))
+            
+            temp = pygame.mouse.get_pos()
+            gameDisplay.blit(pieceImages[game1.board[(xCoord, yCoord)]], (temp[0] - (width/2), temp[1] - (height/2)))
 
-                    if not chr(xCoord+97) == chr(i) or not yCoord + 1 == j:
-                        gameDisplay.blit(pieceImages[game1.board[chr(i)][j].identity], (((i - 97) * width) + xOffset, -(j * height) + (height*8+yOffset)))
+            # pygame.draw.circle(gameDisplay, (200,0,0), (((ord(k[0]) - 97) * 60) + 160 + 30, -(k[1] * 60) + 540 + 30), 10)
+            if (xCoord, yCoord) in game1.availableMoves:
+                for move in game1.availableMoves[(xCoord, yCoord)]:
+                    ((start, end), special) = move
+                    pygame.draw.circle(gameDisplay, (200,0,0), ((end[0] * 60) + 160 + 30, -(end[1] * 60) + 540 + 30), 10)
 
-    if drag is not None:
-        if xEdge != 0 and yEdge != 0:
-            if 0 <= xCoord < 8 and 0 <= yCoord < 8:
-                if game1.board[chr(xCoord+97)][yCoord + 1] is not None:
-                    for k in game1.board[chr(xCoord+97)][yCoord + 1].availableMoves:
-                        if type(k) == tuple:
-                            pygame.draw.circle(gameDisplay, (200,0,0), (((ord(k[0]) - 97) * 60) + 160 + 30, -(k[1] * 60) + 540 + 30), 10)
-                        elif k == "CK":
-                            if game1.whiteTurn:
-                                pygame.draw.circle(gameDisplay, (200,0,0), (((ord('g') - 97) * 60) + 160 + 30, -(1 * 60) + 540 + 30), 10)
-                            else:
-                                pygame.draw.circle(gameDisplay, (200,0,0), (((ord('g') - 97) * 60) + 160 + 30, -(8 * 60) + 540 + 30), 10)
 
-                        elif k == "CQ":
-                            if game1.whiteTurn:
-                                pygame.draw.circle(gameDisplay, (200,0,0), (((ord('c') - 97) * 60) + 160 + 30, -(1 * 60) + 540 + 30), 10)
-                            else:
-                                pygame.draw.circle(gameDisplay, (200,0,0), (((ord('c') - 97) * 60) + 160 + 30, -(8 * 60) + 540 + 30), 10)
-                        elif k == "EPI":
-                            pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord + 1) * 60) + 160 + 30, -((yCoord + 1 + 1) * 60) + 540 + 30), 10)
-                        elif k == "EPII":
-                            pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord - 1) * 60) + 160 + 30, -((yCoord + 1 + 1) * 60) + 540 + 30), 10)
-                        elif k == "EPIII":
-                            pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord - 1) * 60) + 160 + 30, -((yCoord + 1 - 1) * 60) + 540 + 30), 10)
-                        elif k == "EPIV":
-                            pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord + 1) * 60) + 160 + 30, -((yCoord + 1 - 1) * 60) + 540 + 30), 10)
-                        elif k == "PPr0":
-                            if game1.whiteTurn:
-                                pygame.draw.circle(gameDisplay, (200,0,0), ((xCoord * 60) + 160 + 30, -((yCoord + 1 + 1) * 60) + 540 + 30), 10)
-                            else:
-                                pygame.draw.circle(gameDisplay, (200,0,0), ((xCoord * 60) + 160 + 30, -((yCoord + 1 - 1) * 60) + 540 + 30), 10)
-                        elif k == "PPrI":
-                            pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord + 1) * 60) + 160 + 30, -((yCoord + 1 + 1) * 60) + 540 + 30), 10)
-                        elif k == "PPrII":
-                            pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord - 1) * 60) + 160 + 30, -((yCoord + 1 + 1) * 60) + 540 + 30), 10)
-                        elif k == "PPrIII":
-                            pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord - 1) * 60) + 160 + 30, -((yCoord + 1 - 1) * 60) + 540 + 30), 10)
-                        elif k == "PPrIV":
-                            pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord + 1) * 60) + 160 + 30, -((yCoord + 1 - 1) * 60) + 540 + 30), 10)
 
-                    temp = pygame.mouse.get_pos()
-                    gameDisplay.blit(pieceImages[game1.board[chr(xCoord+97)][yCoord + 1].identity], (temp[0] - (width/2), temp[1] - (height/2)))
+    # if drag is not None:
+    #     if xEdge != 0 and yEdge != 0:
+    #         if 0 <= xCoord < 8 and 0 <= yCoord < 8:
+    #             if game1.board[chr(xCoord+97)][yCoord + 1] is not None:
+    #                 for k in game1.board[chr(xCoord+97)][yCoord + 1].availableMoves:
+    #                     if type(k) == tuple:
+    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((ord(k[0]) - 97) * 60) + 160 + 30, -(k[1] * 60) + 540 + 30), 10)
+    #                     elif k == "CK":
+    #                         if game1.whiteTurn:
+    #                             pygame.draw.circle(gameDisplay, (200,0,0), (((ord('g') - 97) * 60) + 160 + 30, -(1 * 60) + 540 + 30), 10)
+    #                         else:
+    #                             pygame.draw.circle(gameDisplay, (200,0,0), (((ord('g') - 97) * 60) + 160 + 30, -(8 * 60) + 540 + 30), 10)
+
+    #                     elif k == "CQ":
+    #                         if game1.whiteTurn:
+    #                             pygame.draw.circle(gameDisplay, (200,0,0), (((ord('c') - 97) * 60) + 160 + 30, -(1 * 60) + 540 + 30), 10)
+    #                         else:
+    #                             pygame.draw.circle(gameDisplay, (200,0,0), (((ord('c') - 97) * 60) + 160 + 30, -(8 * 60) + 540 + 30), 10)
+    #                     elif k == "EPI":
+    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord + 1) * 60) + 160 + 30, -((yCoord + 1 + 1) * 60) + 540 + 30), 10)
+    #                     elif k == "EPII":
+    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord - 1) * 60) + 160 + 30, -((yCoord + 1 + 1) * 60) + 540 + 30), 10)
+    #                     elif k == "EPIII":
+    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord - 1) * 60) + 160 + 30, -((yCoord + 1 - 1) * 60) + 540 + 30), 10)
+    #                     elif k == "EPIV":
+    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord + 1) * 60) + 160 + 30, -((yCoord + 1 - 1) * 60) + 540 + 30), 10)
+    #                     elif k == "PPr0":
+    #                         if game1.whiteTurn:
+    #                             pygame.draw.circle(gameDisplay, (200,0,0), ((xCoord * 60) + 160 + 30, -((yCoord + 1 + 1) * 60) + 540 + 30), 10)
+    #                         else:
+    #                             pygame.draw.circle(gameDisplay, (200,0,0), ((xCoord * 60) + 160 + 30, -((yCoord + 1 - 1) * 60) + 540 + 30), 10)
+    #                     elif k == "PPrI":
+    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord + 1) * 60) + 160 + 30, -((yCoord + 1 + 1) * 60) + 540 + 30), 10)
+    #                     elif k == "PPrII":
+    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord - 1) * 60) + 160 + 30, -((yCoord + 1 + 1) * 60) + 540 + 30), 10)
+    #                     elif k == "PPrIII":
+    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord - 1) * 60) + 160 + 30, -((yCoord + 1 - 1) * 60) + 540 + 30), 10)
+    #                     elif k == "PPrIV":
+    #                         pygame.draw.circle(gameDisplay, (200,0,0), (((xCoord + 1) * 60) + 160 + 30, -((yCoord + 1 - 1) * 60) + 540 + 30), 10)
+
+                    
 
     pygame.display.update()
     clock.tick(60)
