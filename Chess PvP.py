@@ -221,6 +221,17 @@ class game:
                             continue
                         if self.board[pPosition] == Piece.WhK:
                             return True
+                
+                # hypothetical
+                if self.board[key] == Piece.BlK:
+                    x = key[0]
+                    y = key[1]
+                    for kPosition in [(x+1, y+0), (x+1, y+1), (x+0, y+1), (x-1, y+1), (x-1, y+0), (x-1, y-1), (x+0, y-1), (x+1, y-1)]:
+                        if kPosition not in self.board:
+                            continue
+                        if self.board[kPosition] == Piece.WhK:
+                            return True
+
 
         # check if black king is checked
         else:
@@ -352,7 +363,16 @@ class game:
                             continue
                         if self.board[pPosition] == Piece.BlK:
                             return True
-            
+
+                # hypothetical
+                if self.board[key] == Piece.WhK:
+                    x = key[0]
+                    y = key[1]
+                    for kPosition in [(x+1, y+0), (x+1, y+1), (x+0, y+1), (x-1, y+1), (x-1, y+0), (x-1, y-1), (x+0, y-1), (x+1, y-1)]:
+                        if kPosition not in self.board:
+                            continue
+                        if self.board[kPosition] == Piece.BlK:
+                            return True
         return False
 
     def currChecked(self):
