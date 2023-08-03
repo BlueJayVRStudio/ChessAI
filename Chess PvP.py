@@ -37,6 +37,8 @@ class gameConditions:
 
 class game:
     def __init__(self):
+        self.nodesTraversed = 0
+
         self.currentConditions = gameConditions(True, False, False, False, False, False, False)
         self.previousConditions = []
         
@@ -94,30 +96,32 @@ class game:
 
         # check if white king is checked
         if not self.currentConditions.whiteTurn:
-            for key in keys:
-                if self.board[key] == Piece.BlR or self.board[key] == Piece.BlQ:
+            for key in keys:                
+                if self.board[key] == Piece.WhK:
                     # left
                     x = key[0] - 1
                     y = key[1]
                     while x > 0:
+                        self.nodesTraversed += 1
                         if (x, y) not in self.board:
                             x -= 1
                             continue
 
-                        if (self.board[(x, y)] == Piece.WhK):
+                        if self.board[(x, y)] == Piece.BlR or self.board[(x, y)] == Piece.BlQ:
                             return True
                         else:
                             break
-
+                    
                     # right
                     x = key[0] + 1
                     y = key[1]
                     while x < 9:
+                        self.nodesTraversed += 1
                         if (x, y) not in self.board:
                             x += 1
                             continue
 
-                        if (self.board[(x, y)] == Piece.WhK):
+                        if self.board[(x, y)] == Piece.BlR or self.board[(x, y)] == Piece.BlQ:
                             return True
                         else:
                             break
@@ -126,11 +130,12 @@ class game:
                     x = key[0]
                     y = key[1] - 1
                     while y > 0:
+                        self.nodesTraversed += 1
                         if (x, y) not in self.board:
                             y -= 1
                             continue
 
-                        if (self.board[(x, y)] == Piece.WhK):
+                        if self.board[(x, y)] == Piece.BlR or self.board[(x, y)] == Piece.BlQ:
                             return True
                         else:
                             break
@@ -139,26 +144,27 @@ class game:
                     x = key[0]
                     y = key[1] + 1
                     while y < 9:
+                        self.nodesTraversed += 1
                         if (x, y) not in self.board:
                             y += 1
                             continue
 
-                        if (self.board[(x, y)] == Piece.WhK):
+                        if self.board[(x, y)] == Piece.BlR or self.board[(x, y)] == Piece.BlQ:
                             return True
                         else:
                             break
-                
-                if self.board[key] == Piece.BlB or self.board[key] == Piece.BlQ:
+                    
                     # Diag I
                     x = key[0] + 1
                     y = key[1] + 1
                     while x < 9 and y < 9:
+                        self.nodesTraversed += 1
                         if (x, y) not in self.board:
                             x += 1
                             y += 1
                             continue
 
-                        if (self.board[(x, y)] == Piece.WhK):
+                        if self.board[(x, y)] == Piece.BlB or self.board[(x, y)] == Piece.BlQ or (abs(key[0]-x) == 1 and self.board[(x, y)] == Piece.BlP):
                             return True
                         else:
                             break
@@ -167,12 +173,13 @@ class game:
                     x = key[0] - 1
                     y = key[1] + 1
                     while x > 0 and y < 9:
+                        self.nodesTraversed += 1
                         if (x, y) not in self.board:
                             x -= 1
                             y += 1
                             continue
 
-                        if (self.board[(x, y)] == Piece.WhK):
+                        if self.board[(x, y)] == Piece.BlB or self.board[(x, y)] == Piece.BlQ or (abs(key[0]-x) == 1 and self.board[(x, y)] == Piece.BlP):
                             return True
                         else:
                             break
@@ -181,12 +188,13 @@ class game:
                     x = key[0] - 1
                     y = key[1] - 1
                     while x > 0 and y > 0:
+                        self.nodesTraversed += 1
                         if (x, y) not in self.board:
                             x -= 1
                             y -= 1
                             continue
 
-                        if (self.board[(x, y)] == Piece.WhK):
+                        if self.board[(x, y)] == Piece.BlB or self.board[(x, y)] == Piece.BlQ:
                             return True
                         else:
                             break
@@ -195,71 +203,65 @@ class game:
                     x = key[0] + 1
                     y = key[1] - 1
                     while x < 9 and y > 0:
+                        self.nodesTraversed += 1
                         if (x, y) not in self.board:
                             x += 1
                             y -= 1
                             continue
 
-                        if (self.board[(x, y)] == Piece.WhK):
+                        if self.board[(x, y)] == Piece.BlB or self.board[(x, y)] == Piece.BlQ:
                             return True
                         else:
                             break
-
-                if self.board[key] == Piece.BlKn:
+                    
+                    # Check knights
                     x = key[0]
                     y = key[1]
                     for knPosition in [(x+1, y+2), (x+2, y+1), (x-1, y+2), (x-2, y+1), (x-1, y-2), (x-2, y-1), (x+1, y-2), (x+2, y-1)]:
+                        self.nodesTraversed += 1
                         if knPosition not in self.board:
                             continue
-                        if self.board[knPosition] == Piece.WhK:
+                        if self.board[knPosition] == Piece.BlKn:
                             return True
-                
-                if self.board[key] == Piece.BlP:
-                    x = key[0]
-                    y = key[1]
-                    for pPosition in [(x-1, y-1), (x+1, y-1)]:
-                        if pPosition not in self.board:
-                            continue
-                        if self.board[pPosition] == Piece.WhK:
-                            return True
-                
-                # hypothetical
-                if self.board[key] == Piece.BlK:
+                    
+                    # Check kings (hypothetical)
                     x = key[0]
                     y = key[1]
                     for kPosition in [(x+1, y+0), (x+1, y+1), (x+0, y+1), (x-1, y+1), (x-1, y+0), (x-1, y-1), (x+0, y-1), (x+1, y-1)]:
+                        self.nodesTraversed += 1
                         if kPosition not in self.board:
                             continue
-                        if self.board[kPosition] == Piece.WhK:
+                        if self.board[kPosition] == Piece.BlK:
                             return True
-
 
         # check if black king is checked
         else:
             for key in keys:
-                if self.board[key] == Piece.WhR or self.board[key] == Piece.WhQ:
+                if self.board[key] == Piece.BlK:
                     # left
                     x = key[0] - 1
                     y = key[1]
                     while x > 0:
+                        self.nodesTraversed += 1
                         if (x, y) not in self.board:
                             x -= 1
                             continue
 
-                        if (self.board[(x, y)] == Piece.BlK):
+                        if self.board[(x, y)] == Piece.WhR or self.board[(x, y)] == Piece.WhQ:
                             return True
                         else:
                             break
-
+                    
                     # right
                     x = key[0] + 1
                     y = key[1]
                     while x < 9:
+                        self.nodesTraversed += 1
                         if (x, y) not in self.board:
                             x += 1
                             continue
 
-                        if (self.board[(x, y)] == Piece.BlK):
+                        if self.board[(x, y)] == Piece.WhR or self.board[(x, y)] == Piece.WhQ:
                             return True
                         else:
                             break
@@ -268,11 +270,12 @@ class game:
                     x = key[0]
                     y = key[1] - 1
                     while y > 0:
+                        self.nodesTraversed += 1
                         if (x, y) not in self.board:
                             y -= 1
                             continue
 
-                        if (self.board[(x, y)] == Piece.BlK):
+                        if self.board[(x, y)] == Piece.WhR or self.board[(x, y)] == Piece.WhQ:
                             return True
                         else:
                             break
@@ -281,26 +284,27 @@ class game:
                     x = key[0]
                     y = key[1] + 1
                     while y < 9:
+                        self.nodesTraversed += 1
                         if (x, y) not in self.board:
                             y += 1
                             continue
 
-                        if (self.board[(x, y)] == Piece.BlK):
+                        if self.board[(x, y)] == Piece.WhR or self.board[(x, y)] == Piece.WhQ:
                             return True
                         else:
                             break
-                
-                if self.board[key] == Piece.WhB or self.board[key] == Piece.WhQ:
+                    
                     # Diag I
                     x = key[0] + 1
                     y = key[1] + 1
                     while x < 9 and y < 9:
+                        self.nodesTraversed += 1
                         if (x, y) not in self.board:
                             x += 1
                             y += 1
                             continue
 
-                        if (self.board[(x, y)] == Piece.BlK):
+                        if self.board[(x, y)] == Piece.WhB or self.board[(x, y)] == Piece.WhQ:
                             return True
                         else:
                             break
@@ -309,12 +313,13 @@ class game:
                     x = key[0] - 1
                     y = key[1] + 1
                     while x > 0 and y < 9:
+                        self.nodesTraversed += 1
                         if (x, y) not in self.board:
                             x -= 1
                             y += 1
                             continue
 
-                        if (self.board[(x, y)] == Piece.BlK):
+                        if self.board[(x, y)] == Piece.WhB or self.board[(x, y)] == Piece.WhQ:
                             return True
                         else:
                             break
@@ -323,12 +328,13 @@ class game:
                     x = key[0] - 1
                     y = key[1] - 1
                     while x > 0 and y > 0:
+                        self.nodesTraversed += 1
                         if (x, y) not in self.board:
                             x -= 1
                             y -= 1
                             continue
 
-                        if (self.board[(x, y)] == Piece.BlK):
+                        if self.board[(x, y)] == Piece.WhB or self.board[(x, y)] == Piece.WhQ or (abs(key[0]-x) == 1 and self.board[(x, y)] == Piece.WhP):
                             return True
                         else:
                             break
@@ -337,42 +343,35 @@ class game:
                     x = key[0] + 1
                     y = key[1] - 1
                     while x < 9 and y > 0:
+                        self.nodesTraversed += 1
                         if (x, y) not in self.board:
                             x += 1
                             y -= 1
                             continue
 
-                        if (self.board[(x, y)] == Piece.BlK):
+                        if self.board[(x, y)] == Piece.WhB or self.board[(x, y)] == Piece.WhQ or (abs(key[0]-x) == 1 and self.board[(x, y)] == Piece.WhP):
                             return True
                         else:
                             break
-
-                if self.board[key] == Piece.WhKn:
+                    
+                    # Check knights
                     x = key[0]
                     y = key[1]
                     for knPosition in [(x+1, y+2), (x+2, y+1), (x-1, y+2), (x-2, y+1), (x-1, y-2), (x-2, y-1), (x+1, y-2), (x+2, y-1)]:
+                        self.nodesTraversed += 1
                         if knPosition not in self.board:
                             continue
-                        if self.board[knPosition] == Piece.BlK:
+                        if self.board[knPosition] == Piece.WhKn:
                             return True
-                
-                if self.board[key] == Piece.WhP:
-                    x = key[0]
-                    y = key[1]
-                    for pPosition in [(x-1, y+1), (x+1, y+1)]:
-                        if pPosition not in self.board:
-                            continue
-                        if self.board[pPosition] == Piece.BlK:
-                            return True
-
-                # hypothetical
-                if self.board[key] == Piece.WhK:
+                    
+                    # Check kings (hypothetical)
                     x = key[0]
                     y = key[1]
                     for kPosition in [(x+1, y+0), (x+1, y+1), (x+0, y+1), (x-1, y+1), (x-1, y+0), (x-1, y-1), (x+0, y-1), (x+1, y-1)]:
+                        self.nodesTraversed += 1
                         if kPosition not in self.board:
                             continue
-                        if self.board[kPosition] == Piece.BlK:
+                        if self.board[kPosition] == Piece.WhK:
                             return True
         return False
 
@@ -564,16 +563,15 @@ class game:
                     val += 3
                 elif i == Piece.BlQ:
                     val += 6
+            # print(val)
             return val
         else:
             if gameover[1] == "white":
-                return float("inf")
+                return float('inf')
             elif gameover[1] == "black":
-                return float("-inf")
+                return float('-inf')
             elif gameover[1] == "draw":
                 return 0
-
-
 
     # add legal moves
     def addMoves(self):
@@ -1175,18 +1173,19 @@ class game:
                     self.availableMoves.pop(key)
 
 def minimax(game, depth, alpha, beta, maximizingPlayer):
+    # game.nodesTraversed += 1
     candidateMove = None
-    game.addMoves()
     availableMoves = game.availableMoves
     # print(game.availableMoves)
     # print(depth)
     if depth == 0 or (game.isGameOver())[0]:
+        # print(game.staticEvaluation())
         return (game.staticEvaluation(), None)
     if maximizingPlayer:
         maxEval = float('-inf')
         
         breakAll = False
-        for key in list(availableMoves.keys()):
+        for key in availableMoves:
             if breakAll:
                 break
             for move in availableMoves[key]:
@@ -1197,17 +1196,15 @@ def minimax(game, depth, alpha, beta, maximizingPlayer):
                     candidateMove = move
                 maxEval = max(maxEval, eval)
                 game.reverseMove()
-                alpha = max(alpha, eval)
-                if beta <= alpha:
+                if maxEval > beta:
                     breakAll = True
                     break
-                
-
+                alpha = max(alpha, maxEval) 
         return (maxEval, candidateMove)
     else:
         minEval = float('inf')
         breakAll = False
-        for key in list(availableMoves.keys()):
+        for key in availableMoves:
             if breakAll:
                 break
             for move in availableMoves[key]:
@@ -1218,13 +1215,10 @@ def minimax(game, depth, alpha, beta, maximizingPlayer):
                     candidateMove = move
                 minEval = min(minEval, eval)
                 game.reverseMove()
-                beta = min(beta, eval)
-                if beta <= alpha:
+                if minEval < alpha:
                     breakAll = True
                     break
-                
-
-                
+                beta = min(beta, minEval)
         return (minEval, candidateMove)
         
 
@@ -1362,8 +1356,11 @@ while not crashed:
         continue
 
     if not game1.currentConditions.whiteTurn:
-        (eval, move) = minimax(game1, 4, float('-inf'), float('inf'), False)
+        game1.nodesTraversed = 0
+        (eval, move) = minimax(game1, 2, float('-inf'), float('inf'), False)
+        print(game1.nodesTraversed)
         game1.playMove(move)
+        game1.addMoves()
         # print(move)
 
     if desiredMove is not None:# and game1.currentConditions.whiteTurn: # and it is a valid move
@@ -1423,7 +1420,7 @@ while not crashed:
 
         # print((xCoord, yCoord))
 
-    for i in list(game1.board.keys()):
+    for i in game1.board:
         if drag is None:
             gameDisplay.blit(pieceImages[game1.board[i]], (((i[0]-1) * width) + xOffset, -(i[1] * height) + (height*8+yOffset)))
 
