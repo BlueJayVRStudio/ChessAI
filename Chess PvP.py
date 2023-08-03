@@ -45,6 +45,7 @@ class game:
         self.numMoves = 0
         self.previousMoves = []
         self.previousTaken = []
+        self.previousPromoted = []
         self.whitePiecesTaken = []
         self.blackPiecesTaken = []
 
@@ -387,8 +388,7 @@ class game:
 
         self.previousConditions.append(self.currentConditions)
         self.currentConditions = self.currentConditions.getCopy()
-
-        if special == "" or special == "WK" or special == "BK" or special == "PPr":
+        if special == "" or special == "WK" or special == "BK" or (len(special) >= 3 and special[0:3] == "PPr"):
             if self.board[start] == Piece.WhR and start == (1, 1):
                 self.currentConditions.hasWRookQMoved = True
             elif self.board[start] == Piece.WhR and start == (8, 1):
@@ -463,22 +463,15 @@ class game:
             self.previousTaken.append(self.board[(end[0], start[1])])
             self.board.pop((end[0], start[1]))
         
-        if special == "PPr":
-            while True:
-                promo = input()
-                if promo == 'q':
-                    self.board[end] = Piece.WhQ if self.currentConditions.whiteTurn else Piece.BlQ
-                    break
-                elif promo == 'r':
-                    self.board[end] = Piece.WhR if self.currentConditions.whiteTurn else Piece.BlR
-                    break
-                elif promo == 'b':
-                    self.board[end] = Piece.WhB if self.currentConditions.whiteTurn else Piece.BlB
-                    break
-                elif promo == 'kn':
-                    self.board[end] = Piece.WhKn if self.currentConditions.whiteTurn else Piece.BlKn
-                    break
-
+        
+        if special == "PPrQ":
+            self.board[end] = Piece.WhQ if self.currentConditions.whiteTurn else Piece.BlQ
+        if special == "PPrR":
+            self.board[end] = Piece.WhR if self.currentConditions.whiteTurn else Piece.BlR
+        if special == "PPrB":
+            self.board[end] = Piece.WhB if self.currentConditions.whiteTurn else Piece.BlB
+        if special == "PPrKn":
+            self.board[end] = Piece.WhKn if self.currentConditions.whiteTurn else Piece.BlKn
         
         self.currentConditions.whiteTurn = not self.currentConditions.whiteTurn
 
@@ -487,7 +480,7 @@ class game:
         ((start, end), special) = self.previousMoves.pop()
         previousTaken = self.previousTaken.pop()
 
-        if special == "" or special == "WK" or special == "BK" or special == "PPr":
+        if special == "" or special == "WK" or special == "BK" or (len(special) >= 3 and special[0:3] == "PPr"):
             self.board[start] = self.board[end]
             if previousTaken == None:
                 self.board.pop(end)
@@ -523,10 +516,65 @@ class game:
             self.board.pop(end)
             self.board[(end[0], start[1])] = previousTaken
         
-        if special == "PPr":
+        if special == "PPrQ" or special == "PPrR" or special == "PPrB" or special == "PPrKn":
             self.board[start] = Piece.WhP if self.currentConditions.whiteTurn else Piece.BlP
             
-        
+    def isGameOver(self):
+        self.addMoves()
+        availableMoves = self.availableMoves
+        availableKeys = list(availableMoves.keys())
+        if len(availableKeys) == 0:
+            if self.currChecked():
+                if game1.currentConditions.whiteTurn:
+                    # black victory
+                    print("black wins")
+                    return (True, "black")
+                else:
+                    # white victory
+                    print("white wins")
+                    return (True, "white")
+            # draw
+            else:
+                print("draw")
+                return (True, "draw")
+        return (False, "ongoing")
+
+    def staticEvaluation(self):
+        gameover = self.isGameOver()
+        if not gameover[0]:
+            val = 0
+            for i in self.previousTaken:
+                if i == Piece.WhP:
+                    val -= 1
+                elif i == Piece.WhR:
+                    val -= 5
+                elif i == Piece.WhKn:
+                    val -= 3
+                elif i == Piece.WhB:
+                    val -= 3
+                elif i == Piece.WhQ:
+                    val -= 6
+                elif i == Piece.BlP:
+                    val += 1
+                elif i == Piece.BlR:
+                    val += 5
+                elif i == Piece.BlKn:
+                    val += 3
+                elif i == Piece.BlB:
+                    val += 3
+                elif i == Piece.BlQ:
+                    val += 6
+            return val
+        else:
+            if gameover[1] == "white":
+                return float("inf")
+            elif gameover[1] == "black":
+                return float("-inf")
+            elif gameover[1] == "draw":
+                return 0
+
+
+
     # add legal moves
     def addMoves(self):
         keys = list(self.board.keys())
@@ -769,7 +817,7 @@ class game:
                     y = key[1]
                     # if pawn in starting position
                     if y == 2:
-                        if (x, y+2) not in self.board:
+                        if (x, y+2) not in self.board and (x, y+1) not in self.board:
                             self.playMove(((key, (x, y+2)), ""))
                             if not self.checked():
                                 self.availableMoves[key].append(((key, (x, y+2)), ""))
@@ -781,7 +829,10 @@ class game:
                             if y+1 < 8:
                                 self.availableMoves[key].append(((key, (x, y+1)), ""))
                             else:
-                                self.availableMoves[key].append(((key, (x, y+1)), "PPr"))
+                                self.availableMoves[key].append(((key, (x, y+1)), "PPrQ"))
+                                self.availableMoves[key].append(((key, (x, y+1)), "PPrR"))
+                                self.availableMoves[key].append(((key, (x, y+1)), "PPrB"))
+                                self.availableMoves[key].append(((key, (x, y+1)), "PPrKn"))
                         self.reverseMove()
                     
                     if (x+1, y+1) in self.board and self.board[(x+1, y+1)] > 5:
@@ -790,7 +841,10 @@ class game:
                             if y+1 < 8:
                                 self.availableMoves[key].append(((key, (x+1, y+1)), ""))
                             else: 
-                                self.availableMoves[key].append(((key, (x+1, y+1)), "PPr"))
+                                self.availableMoves[key].append(((key, (x+1, y+1)), "PPrQ"))
+                                self.availableMoves[key].append(((key, (x+1, y+1)), "PPrR"))
+                                self.availableMoves[key].append(((key, (x+1, y+1)), "PPrB"))
+                                self.availableMoves[key].append(((key, (x+1, y+1)), "PPrKn"))
                         self.reverseMove()
                     
                     if (x-1, y+1) in self.board and self.board[(x-1, y+1)] > 5:
@@ -799,7 +853,10 @@ class game:
                             if y+1 < 8:
                                 self.availableMoves[key].append(((key, (x-1, y+1)), ""))
                             else:
-                                self.availableMoves[key].append(((key, (x-1, y+1)), "PPr"))
+                                self.availableMoves[key].append(((key, (x-1, y+1)), "PPrQ"))
+                                self.availableMoves[key].append(((key, (x-1, y+1)), "PPrR"))
+                                self.availableMoves[key].append(((key, (x-1, y+1)), "PPrB"))
+                                self.availableMoves[key].append(((key, (x-1, y+1)), "PPrKn"))
                         self.reverseMove()
 
                     # if pawn eligible for en passant
@@ -1055,7 +1112,7 @@ class game:
                     y = key[1]
                     # if pawn in starting position
                     if y == 7:
-                        if (x, y-2) not in self.board:
+                        if (x, y-2) not in self.board and (x, y-1) not in self.board:
                             self.playMove(((key, (x, y-2)), ""))
                             if not self.checked():
                                 self.availableMoves[key].append(((key, (x, y-2)), ""))
@@ -1067,7 +1124,10 @@ class game:
                             if y-1 > 1:
                                 self.availableMoves[key].append(((key, (x, y-1)), ""))
                             else:
-                                self.availableMoves[key].append(((key, (x, y-1)), "PPr"))
+                                self.availableMoves[key].append(((key, (x, y-1)), "PPrQ"))
+                                self.availableMoves[key].append(((key, (x, y-1)), "PPrR"))
+                                self.availableMoves[key].append(((key, (x, y-1)), "PPrB"))
+                                self.availableMoves[key].append(((key, (x, y-1)), "PPrKn"))
                         self.reverseMove()
                     
                     if (x+1, y-1) in self.board and self.board[(x+1, y-1)] <= 5:
@@ -1076,7 +1136,10 @@ class game:
                             if y-1 > 1:
                                 self.availableMoves[key].append(((key, (x+1, y-1)), ""))
                             else: 
-                                self.availableMoves[key].append(((key, (x+1, y-1)), "PPr"))
+                                self.availableMoves[key].append(((key, (x+1, y-1)), "PPrQ"))
+                                self.availableMoves[key].append(((key, (x+1, y-1)), "PPrR"))
+                                self.availableMoves[key].append(((key, (x+1, y-1)), "PPrB"))
+                                self.availableMoves[key].append(((key, (x+1, y-1)), "PPrKn"))
                         self.reverseMove()
                     
                     if (x-1, y-1) in self.board and self.board[(x-1, y-1)] <= 5:
@@ -1085,7 +1148,10 @@ class game:
                             if y-1 > 1:
                                 self.availableMoves[key].append(((key, (x-1, y-1)), ""))
                             else:
-                                self.availableMoves[key].append(((key, (x-1, y-1)), "PPr"))
+                                self.availableMoves[key].append(((key, (x-1, y-1)), "PPrQ"))
+                                self.availableMoves[key].append(((key, (x-1, y-1)), "PPrR"))
+                                self.availableMoves[key].append(((key, (x-1, y-1)), "PPrB"))
+                                self.availableMoves[key].append(((key, (x-1, y-1)), "PPrKn"))
                         self.reverseMove()
 
                     # if pawn eligible for en passant
@@ -1107,6 +1173,60 @@ class game:
                     
                 if len(self.availableMoves[key]) == 0:
                     self.availableMoves.pop(key)
+
+def minimax(game, depth, alpha, beta, maximizingPlayer):
+    candidateMove = None
+    game.addMoves()
+    availableMoves = game.availableMoves
+    # print(game.availableMoves)
+    # print(depth)
+    if depth == 0 or (game.isGameOver())[0]:
+        return (game.staticEvaluation(), None)
+    if maximizingPlayer:
+        maxEval = float('-inf')
+        
+        breakAll = False
+        for key in list(availableMoves.keys()):
+            if breakAll:
+                break
+            for move in availableMoves[key]:
+                game.playMove(move)
+                game.addMoves()
+                eval = minimax(game, depth - 1, alpha, beta, False)[0]
+                if eval >= maxEval:
+                    candidateMove = move
+                maxEval = max(maxEval, eval)
+                game.reverseMove()
+                alpha = max(alpha, eval)
+                if beta <= alpha:
+                    breakAll = True
+                    break
+                
+
+        return (maxEval, candidateMove)
+    else:
+        minEval = float('inf')
+        breakAll = False
+        for key in list(availableMoves.keys()):
+            if breakAll:
+                break
+            for move in availableMoves[key]:
+                game.playMove(move)
+                game.addMoves()
+                eval = minimax(game, depth - 1, alpha, beta, True)[0]
+                if eval <= minEval:
+                    candidateMove = move
+                minEval = min(minEval, eval)
+                game.reverseMove()
+                beta = min(beta, eval)
+                if beta <= alpha:
+                    breakAll = True
+                    break
+                
+
+                
+        return (minEval, candidateMove)
+        
 
 # game instance
 import pygame
@@ -1180,6 +1300,10 @@ while not crashed:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             crashed = True
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_BACKSPACE:
+                game1.reverseMove()
+                game1.addMoves()
         if event.type == pygame.MOUSEBUTTONDOWN:
             pressed = True
             drag = pygame.mouse.get_pos()
@@ -1216,29 +1340,48 @@ while not crashed:
 
     ### UPDATE ###
 
-    availableMoves = game1.availableMoves
-    availableKeys = list(availableMoves.keys())
-    if len(availableKeys) == 0:
-        if game1.currChecked():
-            if game1.currentConditions.whiteTurn:
-                # black victory
-                print("black wins")
-                break
-            else:
-                # white victory
-                print("white wins")
-                break
-        # draw
-        else:
-            print("draw")
-            break
+    # availableMoves = game1.availableMoves
+    # availableKeys = list(availableMoves.keys())
+    # if len(availableKeys) == 0:
+    #     if game1.currChecked():
+    #         if game1.currentConditions.whiteTurn:
+    #             # black victory
+    #             print("black wins")
+    #             break
+    #         else:
+    #             # white victory
+    #             print("white wins")
+    #             break
+    #     # draw
+    #     else:
+    #         print("draw")
+    #         break
 
-    if desiredMove is not None: # and it is a valid move
+    if (game1.isGameOver())[0]:
+        print(game1.isGameOver())
+        continue
+
+    if not game1.currentConditions.whiteTurn:
+        (eval, move) = minimax(game1, 4, float('-inf'), float('inf'), False)
+        game1.playMove(move)
+        # print(move)
+
+    if desiredMove is not None:# and game1.currentConditions.whiteTurn: # and it is a valid move
         # play move
+        promotionIntent = None
         if desiredMove[0] in game1.availableMoves:
             for move in game1.availableMoves[desiredMove[0]]:
                 ((start, end), special) = move
                 if desiredMove != None and desiredMove[1] == end:
+                    if len(special) >= 3 and special[0:3] == "PPr":
+                        if promotionIntent is None:
+                            temp = input()
+                            while not (temp == "Q" or temp == "R" or temp == "B" or temp == "Kn"):
+                                temp = input()
+                            promotionIntent = temp
+                        if "PPr" + promotionIntent != special:
+                            continue
+                        
                     game1.playMove(move)
                     game1.addMoves()
                     desiredMove = None
