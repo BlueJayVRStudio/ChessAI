@@ -2,11 +2,11 @@ UPDATE: AI ADDED WITH MINIMAX AND ALPHA-BETA PRUNING :D
 
 For pawn promotion, input the following in the console:
 
-q - Queen
+Q - Queen
 
-r - Rook
+R - Rook
 
-b - Bishop
+B - Bishop
 
-k - Knight
+Kn - Knight
 
