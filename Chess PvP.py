@@ -1,6 +1,11 @@
 # citations:
 ## chess piece images: https://commons.wikimedia.org/wiki/Category:PNG_chess_pieces/Standard_transparent
 
+import math
+import random
+from multiprocessing import Process, Manager
+import time
+
 # is this how you enum in python?
 class piece:
     def __init__(self):
@@ -44,7 +49,11 @@ class game:
         
         # self.movesAdded = False
 
-        self.numMoves = 0
+        # for Monte Carlo
+        self.actionsInitialized = False
+        self.nActions = []
+
+        self.previousMovesHashed = {}
         self.previousMoves = []
         self.previousTaken = []
         self.previousPromoted = []
@@ -89,6 +98,36 @@ class game:
         self.board[(6, 8)] = Piece.BlB
         self.board[(7, 8)] = Piece.BlKn
         self.board[(8, 8)] = Piece.BlR
+    
+    def getCopy(self): #board, conditions, previousMovesHashed):
+        newGame = game()
+        newGame.board = {}
+
+        for key in self.board:
+            newGame.board[key] = self.board[key]
+
+        newGame.currentConditions = self.currentConditions.getCopy()
+
+        for key in self.previousMovesHashed:
+            newGame.previousMovesHashed[key] = self.previousMovesHashed[key]
+        
+        for i in self.previousMoves:
+            newGame.previousMoves.append(i)
+
+        for i in self.previousTaken:
+            newGame.previousTaken.append(i)
+
+        for i in self.previousPromoted:
+            newGame.previousPromoted.append(i)
+
+        for i in self.whitePiecesTaken:
+            newGame.whitePiecesTaken.append(i)
+
+        for i in self.blackPiecesTaken:
+            newGame.blackPiecesTaken.append(i)
+
+        return newGame
+
 
     # check if current player's king is in check
     def checked(self):
@@ -465,12 +504,16 @@ class game:
         
         if special == "PPrQ":
             self.board[end] = Piece.WhQ if self.currentConditions.whiteTurn else Piece.BlQ
+            self.previousPromoted.append(self.board[end])
         if special == "PPrR":
             self.board[end] = Piece.WhR if self.currentConditions.whiteTurn else Piece.BlR
+            self.previousPromoted.append(self.board[end])
         if special == "PPrB":
             self.board[end] = Piece.WhB if self.currentConditions.whiteTurn else Piece.BlB
+            self.previousPromoted.append(self.board[end])
         if special == "PPrKn":
             self.board[end] = Piece.WhKn if self.currentConditions.whiteTurn else Piece.BlKn
+            self.previousPromoted.append(self.board[end])
         
         self.currentConditions.whiteTurn = not self.currentConditions.whiteTurn
 
@@ -517,61 +560,88 @@ class game:
         
         if special == "PPrQ" or special == "PPrR" or special == "PPrB" or special == "PPrKn":
             self.board[start] = Piece.WhP if self.currentConditions.whiteTurn else Piece.BlP
+            self.previousPromoted.pop()
             
     def isGameOver(self):
+        _hash = self.hashOnlyBoard()
+        if _hash in self.previousMovesHashed:
+            if self.previousMovesHashed[_hash] == 3:
+                return (True, "draw")
+
         self.addMoves()
         availableMoves = self.availableMoves
         availableKeys = list(availableMoves.keys())
         if len(availableKeys) == 0:
             if self.currChecked():
-                if game1.currentConditions.whiteTurn:
+                if self.currentConditions.whiteTurn:
                     # black victory
-                    print("black wins")
+                    # print("black wins")
                     return (True, "black")
                 else:
                     # white victory
-                    print("white wins")
+                    # print("white wins")
                     return (True, "white")
             # draw
             else:
+                # print("draw")
+                return (True, "draw")
+        else:
+            count = 0
+            whiteKing = False
+            blackKing = False
+            for i in range(1, 9):
+                for j in range(1, 9):
+                    if (i, j) in self.board:
+                        count += 1
+                        if self.board[(i, j)] == Piece.WhK:
+                            whiteKing = True
+                        elif self.board[(i,j)] == Piece.BlK:
+                            blackKing = True
+            if count == 2 and whiteKing and blackKing:
                 print("draw")
                 return (True, "draw")
+        if len(self.previousTaken) >= 100:
+            return (True, "draw")
         return (False, "ongoing")
 
     def staticEvaluation(self):
         gameover = self.isGameOver()
         if not gameover[0]:
-            val = 0
-            for i in self.previousTaken:
-                if i == Piece.WhP:
-                    val -= 1
-                elif i == Piece.WhR:
-                    val -= 5
-                elif i == Piece.WhKn:
-                    val -= 3
-                elif i == Piece.WhB:
-                    val -= 3
-                elif i == Piece.WhQ:
-                    val -= 6
-                elif i == Piece.BlP:
-                    val += 1
-                elif i == Piece.BlR:
-                    val += 5
-                elif i == Piece.BlKn:
-                    val += 3
-                elif i == Piece.BlB:
-                    val += 3
-                elif i == Piece.BlQ:
-                    val += 6
-            # print(val)
-            return val
+            return 0
         else:
             if gameover[1] == "white":
-                return float('inf')
+                return 1
             elif gameover[1] == "black":
-                return float('-inf')
+                return -1
             elif gameover[1] == "draw":
                 return 0
+
+    def hashBoard(self):
+        hashString = ""
+        for i in range(1, 9):
+            for j in range(1, 9):
+                if (i, j) in self.board:
+                    hashString += str(i)
+                    hashString += str(j)
+                    hashString += str(self.board[(i, j)])
+        hashString += str(int(self.currentConditions.hasBlackKingMoved))
+        hashString += str(int(self.currentConditions.hasBRookKMoved))
+        hashString += str(int(self.currentConditions.hasBRookQMoved))
+        hashString += str(int(self.currentConditions.hasWhiteKingMoved))
+        hashString += str(int(self.currentConditions.hasWRookKMoved))
+        hashString += str(int(self.currentConditions.hasWRookQMoved))
+        hashString += str(int(self.currentConditions.whiteTurn))
+        return hashString
+
+    def hashOnlyBoard(self):
+        hashString = ""
+        for i in range(1, 9):
+            for j in range(1, 9):
+                if (i, j) in self.board:
+                    hashString += str(i)
+                    hashString += str(j)
+                    hashString += str(self.board[(i, j)])
+        return hashString
 
     # add legal moves
     def addMoves(self):
@@ -1172,274 +1242,552 @@ class game:
                 if len(self.availableMoves[key]) == 0:
                     self.availableMoves.pop(key)
 
-def minimax(game, depth, alpha, beta, maximizingPlayer):
-    # game.nodesTraversed += 1
-    candidateMove = None
-    availableMoves = game.availableMoves
-    # print(game.availableMoves)
-    # print(depth)
-    if depth == 0 or (game.isGameOver())[0]:
-        # print(game.staticEvaluation())
-        return (game.staticEvaluation(), None)
-    if maximizingPlayer:
-        maxEval = float('-inf')
+# # minimax; memoization performance is terrible
+# MemoTable = {}
+# def minimax(game, depth, alpha, beta, maximizingPlayer):
+#     # game.nodesTraversed += 1
+#     candidateMove = None
+#     availableMoves = game.availableMoves
+#     # print(game.availableMoves)
+#     # print(depth)
+#     if depth == 0 or (game.isGameOver())[0]:
+#         # print(game.staticEvaluation())
+#         return (game.staticEvaluation(), None)
+#     if maximizingPlayer:
+#         maxEval = float('-inf')
         
-        breakAll = False
-        for key in availableMoves:
-            if breakAll:
-                break
-            for move in availableMoves[key]:
-                game.playMove(move)
-                game.addMoves()
-                eval = minimax(game, depth - 1, alpha, beta, False)[0]
-                if eval >= maxEval:
-                    candidateMove = move
-                maxEval = max(maxEval, eval)
-                game.reverseMove()
-                if maxEval > beta:
-                    breakAll = True
-                    break
-                alpha = max(alpha, maxEval) 
-        return (maxEval, candidateMove)
+#         breakAll = False
+#         for key in availableMoves:
+#             if breakAll:
+#                 break
+#             for move in availableMoves[key]:
+#                 game.playMove(move)
+#                 game.addMoves()
+
+#                 hash = game1.hashBoard()
+#                 if (hash, depth-1) in MemoTable:
+#                     eval = MemoTable[(hash, depth-1)]
+#                     print ("been visited!")
+#                 else:
+#                     eval = minimax(game, depth - 1, alpha, beta, False)[0]
+#                     MemoTable[(hash, depth-1)] = eval
+#                 # eval = minimax(game, depth - 1, alpha, beta, False)[0]
+
+#                 if eval >= maxEval:
+#                     candidateMove = move
+#                 maxEval = max(maxEval, eval)
+#                 game.reverseMove()
+#                 if maxEval > beta:
+#                     breakAll = True
+#                     break
+#                 alpha = max(alpha, maxEval) 
+#         return (maxEval, candidateMove)
+#     else:
+#         minEval = float('inf')
+#         breakAll = False
+#         for key in availableMoves:
+#             if breakAll:
+#                 break
+#             for move in availableMoves[key]:
+#                 game.playMove(move)
+#                 game.addMoves()
+
+#                 hash = game1.hashBoard()
+#                 if (hash, depth-1) in MemoTable:
+#                     eval = MemoTable[(hash, depth-1)]
+#                     print ("been visited!")
+#                 else:
+#                     eval = minimax(game, depth - 1, alpha, beta, True)[0]
+#                     MemoTable[(hash, depth-1)] = eval
+#                 # eval = minimax(game, depth - 1, alpha, beta, True)[0]
+
+#                 if eval <= minEval:
+#                     candidateMove = move
+#                 minEval = min(minEval, eval)
+#                 game.reverseMove()
+#                 if minEval < alpha:
+#                     breakAll = True
+#                     break
+#                 beta = min(beta, minEval)
+#         return (minEval, candidateMove)
+        
+# Monte Carlo Tree Search
+
+class MCTree:
+    def __init__(self, _state):
+        self.state = _state
+        self.children = {}
+        self.reward = 0
+        self.count = 0
+        self.parent = None
+
+        self.beingAccessed = False
+
+    def AddTree(self, a, _newState, nodeLookUp):
+        # self.state.playMove(a)
+        # _newState = self.state.getCopy()
+        # self.state.reverseMove()
+        # print("adding!")
+
+        newNode = MCTree(_newState)
+        newNode.parent = self
+        self.children[a] = newNode
+        nodeLookUp[_newState.hashBoard()] = newNode
+        # print(_newState.hashBoard())
+    
+def MCTS(X0, maximizingAgent, nodeLookUp):
+    T0 = None
+    # print(X0.hashBoard())
+    if X0.hashBoard() in nodeLookUp:
+        # print("info available")
+        T0 = nodeLookUp[X0.hashBoard()]
     else:
-        minEval = float('inf')
-        breakAll = False
-        for key in availableMoves:
-            if breakAll:
-                break
-            for move in availableMoves[key]:
-                game.playMove(move)
-                game.addMoves()
-                eval = minimax(game, depth - 1, alpha, beta, True)[0]
-                if eval <= minEval:
-                    candidateMove = move
-                minEval = min(minEval, eval)
-                game.reverseMove()
-                if minEval < alpha:
-                    breakAll = True
-                    break
-                beta = min(beta, minEval)
-        return (minEval, candidateMove)
-        
-
-# game instance
-import pygame
-import math
-
-pygame.init()
-
-display_width = 800
-display_height = 600
-
-gameDisplay = pygame.display.set_mode((display_width,display_height))
-pygame.display.set_caption('Chess')
-
-# initiate game
-game1 = game()
-game1.addMoves()
-
-#input related variables
-drag = None
-drop = None
-desiredMove = None
-
-# offsets and other properties
-xOffset = 160
-yOffset = 60
-width = 60
-height = 60
-blackTileRGB = (160, 84, 41)
-whiteTileRGB = (225, 157, 119)
-
-# load images onto a dictionary
-keys = list(Piece.Names.keys())
-pieceImages = {}
-for i in keys:
-    pieceImages[i] = pygame.transform.smoothscale(pygame.image.load("pieces/" + Piece.Names[i] + ".png"), (width, height))
-
-# create tiles
-rectangles = []
-for i in range(0, 8):
-    for j in range(0, 8):
-        if i % 2 == 0:
-            if j % 2 == 0:
-                rectangles.append([pygame.Rect(((i * width) + xOffset, (j * height) + yOffset), (width, height)), whiteTileRGB])
-            else:
-                rectangles.append([pygame.Rect(((i * width) + xOffset, (j * height) + yOffset), (width, height)), blackTileRGB])
-        else:
-            if j % 2 == 0:
-                rectangles.append([pygame.Rect(((i * width) + xOffset, (j * height) + yOffset), (width, height)), blackTileRGB])
-            else:
-                rectangles.append([pygame.Rect(((i * width) + xOffset, (j * height) + yOffset), (width, height)), whiteTileRGB])
-
-clock = pygame.time.Clock()
-crashed = False
-pressed = False
-
-# game loop
-while not crashed:
-    # print(game1.currentConditions.whiteTurn)
-    ### INPUT ###
-
-    xEdgeDrag = None
-    xCoordDrag = None
-    yEdgeDrag = None
-    yCoordDrag = None
-
-    xEdgeDrop = None
-    xCoordDrop = None
-    yEdgeDrop = None
-    yCoordDrop = None
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            crashed = True
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_BACKSPACE:
-                game1.reverseMove()
-                game1.addMoves()
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            pressed = True
-            drag = pygame.mouse.get_pos()
-
-        if event.type == pygame.MOUSEBUTTONUP:
-            drop = pygame.mouse.get_pos()
-
-            # calculate board position of drag
-            xEdgeDrag = (drag[0]-xOffset) % width
-            # x: 0 - 7
-            xCoordDrag = math.floor((drag[0]-xOffset)/width)
-            yEdgeDrag = (drag[1]-yOffset) % height
-            # y: 0 - 7
-            yCoordDrag = 7 - math.floor((drag[1]-yOffset)/height)
-
-            # calculate board position of drop
-            xEdgeDrop = (drop[0]-xOffset) % width
-            # x: 0 - 7
-            xCoordDrop = math.floor((drop[0]-xOffset)/width)
-            yEdgeDrop = (drop[1]-yOffset) % height
-            # y: 0 - 7
-            yCoordDrop = 7 - math.floor((drop[1]-yOffset)/height)
-
-            desiredMove = [None, None]
-            if xEdgeDrag != 0 and yEdgeDrag != 0:
-                if 0 <= xCoordDrag < 8 and 0 <= yCoordDrag < 8:
-                    desiredMove[0] = (xCoordDrag + 1, yCoordDrag + 1)
-            if xEdgeDrop != 0 and yEdgeDrop != 0:
-                if 0 <= xCoordDrop < 8 and 0 <= yCoordDrop < 8:
-                    desiredMove[1] = (xCoordDrop + 1, yCoordDrop + 1)
-
-            drag = None
-            drop = None
-
-    ### UPDATE ###
-
-    # availableMoves = game1.availableMoves
-    # availableKeys = list(availableMoves.keys())
-    # if len(availableKeys) == 0:
-    #     if game1.currChecked():
-    #         if game1.currentConditions.whiteTurn:
-    #             # black victory
-    #             print("black wins")
-    #             break
-    #         else:
-    #             # white victory
-    #             print("white wins")
-    #             break
-    #     # draw
-    #     else:
-    #         print("draw")
-    #         break
-
-    if (game1.isGameOver())[0]:
-        print(game1.isGameOver())
+        # print("info not available")
+        T0 = MCTree(X0)
+        nodeLookUp[X0.hashBoard()] = T0
+    
+    while T0.beingAccessed:
         continue
+    T0.beingAccessed = True
 
-    if not game1.currentConditions.whiteTurn:
-        game1.nodesTraversed = 0
-        (eval, move) = minimax(game1, 2, float('-inf'), float('inf'), False)
-        print(game1.nodesTraversed)
-        game1.playMove(move)
-        game1.addMoves()
-        # print(move)
+    time0 = time.perf_counter()
 
-    if desiredMove is not None:# and game1.currentConditions.whiteTurn: # and it is a valid move
-        # play move
-        promotionIntent = None
-        if desiredMove[0] in game1.availableMoves:
-            for move in game1.availableMoves[desiredMove[0]]:
-                ((start, end), special) = move
-                if desiredMove != None and desiredMove[1] == end:
-                    if len(special) >= 3 and special[0:3] == "PPr":
-                        if promotionIntent is None:
-                            temp = input()
-                            while not (temp == "Q" or temp == "R" or temp == "B" or temp == "Kn"):
-                                temp = input()
-                            promotionIntent = temp
-                        if "PPr" + promotionIntent != special:
-                            continue
-                        
-                    game1.playMove(move)
-                    game1.addMoves()
-                    desiredMove = None
-    else:
-        pass
+    while time.perf_counter()-time0 < 1:
+        (Ti, r) = treePolicy(T0, nodeLookUp)
+        Xi = Ti.state
+        while Ti.beingAccessed:
+            continue
+        r = defaultPolicy(Xi, r)
+        Ti.beingAccessed = False
+        backPropagate(Ti, r)
+    a = selectAction(T0, T0.state, maximizingAgent)
+    T0.beingAccessed = False
+    return a
+
     
 
-    ### RENDER ###
+def treePolicy(T, nodeLookUp):
+    r = 0
+    x = T.state
+    depth = 0
+    # print(T.state.previousTaken)
+    # print(T.state.isGameOver())
+    while not x.isGameOver()[0]:
+        # print(depth)
+        depth += 1
+        # print("ongoing")
+        if x.currentConditions.whiteTurn:
+            # print("white turn")
+            a = selectAction(T, x, True)
+        else:
+            # print("black turn")
+            a = selectAction(T, x, False)
+        # xp = transition(x, a)
+        x.playMove(a)
+        xp = x.getCopy()
+        x.reverseMove()
 
-    # refresh surface with white background
-    gameDisplay.fill((255, 255, 255))
+        r = r + xp.staticEvaluation()
+        if a not in T.children:
+            T.AddTree(a, xp, nodeLookUp)
+            return (T.children[a], r)
+        T = T.children[a]
+        x = xp
+    return (T, r)
 
-    # draw tiles
-    for i in rectangles:
-        pygame.draw.rect(gameDisplay, i[1], i[0])
+def defaultPolicy(state, r):
+    x = state.getCopy()
+    while not x.isGameOver()[0]:
+        x.addMoves()
+        actions = []
+        for key in x.availableMoves:
+            for move in x.availableMoves[key]:
+                actions.append(move)
+        a = random.choice(actions)
+        # print(a)
+        x.playMove(a)
 
-    # draw lines
-    # vertical
-    for i in range(0, 9):
-        pygame.draw.line(gameDisplay, (0, 0, 0), ((i * width) + xOffset, yOffset), ((i * width) + xOffset, height*8 + yOffset))
+        r = r + x.staticEvaluation()
+    return r
 
-    # horizontal
-    for j in range(0, 9):
-        pygame.draw.line(gameDisplay, (0, 0, 0),  (xOffset, -(j * height) + (height*8 + yOffset)), (width*8 + xOffset, -(j * height) + (height*8 + yOffset)))
+def backPropagate(T, r):
+    while T is not None:
+        T.reward += r
+        T.count += 1
+        T = T.parent
 
-    xEdge = None
-    xCoord = None
-    yEdge = None
-    yCoord = None
+def selectAction(T, state, maximizingAgent):
+    # print("selecting!!")
+    if maximizingAgent:
+        if not state.actionsInitialized:
+            state.nActions = []
+            state.addMoves()
+            for key in state.availableMoves:
+                for move in state.availableMoves[key]:
+                    state.nActions.append(move)
+            state.actionsInitialized = True
+        random.shuffle(state.nActions)
 
-    if drag is not None:
-        # calculate board position
-        xEdge = (drag[0]-xOffset) % width
-        # x: 0 - 7
-        xCoord = math.floor((drag[0]-xOffset)/width) + 1
-        yEdge = (drag[1]-yOffset) % height
-        # y: 0 - 7
-        yCoord = 7 - math.floor((drag[1]-yOffset)/height) + 1
+        nsum = 0
+        for i in state.nActions:
+            if i in T.children:
+                Tp = T.children[i]
+                nsum += Tp.count
+        
+        maxv = float('-inf')
+        v = None
+        j = None
+        for i in state.nActions:
+            if not i in T.children:
+                v = float('inf')
+            else:
+                Tp = T.children[i]
+                v = (Tp.reward/Tp.count) + math.sqrt((2*math.log(nsum))/Tp.count)
+            if v > maxv:
+                maxv = v
+                j = i
+        return j
 
-        # print((xCoord, yCoord))
+    else:
+        if not state.actionsInitialized:
+            state.nActions = []
+            state.addMoves()
+            for key in state.availableMoves:
+                for move in state.availableMoves[key]:
+                    state.nActions.append(move)
+            state.actionsInitialized = True
+        random.shuffle(state.nActions)
 
-    for i in game1.board:
-        if drag is None:
-            gameDisplay.blit(pieceImages[game1.board[i]], (((i[0]-1) * width) + xOffset, -(i[1] * height) + (height*8+yOffset)))
+        nsum = 0
+        for i in state.nActions:
+            if i in T.children:
+                Tp = T.children[i]
+                nsum += Tp.count
+        
+        minv = float('inf')
+        v = None
+        j = None
+        for i in state.nActions:
+            if not i in T.children:
+                v = float('-inf')
+            else:
+                Tp = T.children[i]
+                v = (Tp.reward/Tp.count) + math.sqrt((2*math.log(nsum))/Tp.count)
+                # print(v)
+            if v < minv:
+                minv = v
+                j = i
+        return j
 
-        elif drag is not None and (xCoord, yCoord) in game1.board:
-            if xCoord != i[0] or yCoord != i[1]:
+
+def bestAction(T, maximizingAgent):
+    if maximizingAgent:
+        maxv = float('-inf')
+        v = None
+        j = None
+        
+        for a in T.children:
+            Tp = T.children[a]
+            if Tp.reward > maxv:
+                maxv = Tp.reward
+                j = a
+
+        return j
+    
+    else:
+        minv = float('inf')
+        v = None
+        j = None
+        for a in T.children:
+            Tp = T.children[a]
+            if Tp.reward < minv:
+                minv = Tp.reward
+                j = a
+        return j
+
+
+def gameThread(trainNum, nodeLookUp):
+    newGame = game()
+    _hash = {}
+
+    while trainNum.value >= 0:
+        if (newGame.isGameOver())[0]:
+            print("game over!") #game1.isGameOver(), "game over!")
+            newGame = game()
+            _hash = {}
+            trainNum.value -= 1
+            print(trainNum.value)
+            print("node look up ", len(nodeLookUp))
+
+        move = MCTS(newGame.getCopy(), newGame.currentConditions.whiteTurn, nodeLookUp)
+
+        # print(game1.nodesTraversed)
+        # print (len(MemoTable))
+        newGame.playMove(move)
+        _hash = newGame.hashOnlyBoard()
+        if _hash not in newGame.previousMovesHashed:
+            newGame.previousMovesHashed[_hash] = 1
+        else:
+            newGame.previousMovesHashed[_hash] += 1
+
+        newGame.addMoves()
+
+if __name__ == '__main__':
+    manager = Manager()
+    nodeLookUp = manager.dict()
+    trainNum = manager.Value('i', 1000000)
+
+    processes = []
+    for i in range(0, 15):
+        processes.append(Process(target=gameThread, args=(trainNum, nodeLookUp)))
+    for i in processes:
+        i.start()
+        pass
+
+
+    
+    # game instance
+    import pygame
+    import math
+
+    pygame.init()
+
+    display_width = 800
+    display_height = 600
+
+    gameDisplay = pygame.display.set_mode((display_width,display_height))
+    pygame.display.set_caption('Chess')
+
+    # initiate game
+    game1 = game()
+    game1.addMoves()
+
+    #input related variables
+    drag = None
+    drop = None
+    desiredMove = None
+
+    # offsets and other properties
+    xOffset = 160
+    yOffset = 60
+    width = 60
+    height = 60
+    blackTileRGB = (160, 84, 41)
+    whiteTileRGB = (225, 157, 119)
+
+    # load images onto a dictionary
+    keys = list(Piece.Names.keys())
+    pieceImages = {}
+    for i in keys:
+        pieceImages[i] = pygame.transform.smoothscale(pygame.image.load("pieces/" + Piece.Names[i] + ".png"), (width, height))
+
+    # create tiles
+    rectangles = []
+    for i in range(0, 8):
+        for j in range(0, 8):
+            if i % 2 == 0:
+                if j % 2 == 0:
+                    rectangles.append([pygame.Rect(((i * width) + xOffset, (j * height) + yOffset), (width, height)), whiteTileRGB])
+                else:
+                    rectangles.append([pygame.Rect(((i * width) + xOffset, (j * height) + yOffset), (width, height)), blackTileRGB])
+            else:
+                if j % 2 == 0:
+                    rectangles.append([pygame.Rect(((i * width) + xOffset, (j * height) + yOffset), (width, height)), blackTileRGB])
+                else:
+                    rectangles.append([pygame.Rect(((i * width) + xOffset, (j * height) + yOffset), (width, height)), whiteTileRGB])
+
+    clock = pygame.time.Clock()
+    crashed = False
+    pressed = False
+
+    # game loop
+    while not crashed:
+        # print(game1.currentConditions.whiteTurn)
+        ### INPUT ###
+
+        xEdgeDrag = None
+        xCoordDrag = None
+        yEdgeDrag = None
+        yCoordDrag = None
+
+        xEdgeDrop = None
+        xCoordDrop = None
+        yEdgeDrop = None
+        yCoordDrop = None
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                crashed = True
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_BACKSPACE:
+                    game1.reverseMove()
+                    game1.addMoves()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                pressed = True
+                drag = pygame.mouse.get_pos()
+
+            if event.type == pygame.MOUSEBUTTONUP:
+                drop = pygame.mouse.get_pos()
+
+                # calculate board position of drag
+                xEdgeDrag = (drag[0]-xOffset) % width
+                # x: 0 - 7
+                xCoordDrag = math.floor((drag[0]-xOffset)/width)
+                yEdgeDrag = (drag[1]-yOffset) % height
+                # y: 0 - 7
+                yCoordDrag = 7 - math.floor((drag[1]-yOffset)/height)
+
+                # calculate board position of drop
+                xEdgeDrop = (drop[0]-xOffset) % width
+                # x: 0 - 7
+                xCoordDrop = math.floor((drop[0]-xOffset)/width)
+                yEdgeDrop = (drop[1]-yOffset) % height
+                # y: 0 - 7
+                yCoordDrop = 7 - math.floor((drop[1]-yOffset)/height)
+
+                desiredMove = [None, None]
+                if xEdgeDrag != 0 and yEdgeDrag != 0:
+                    if 0 <= xCoordDrag < 8 and 0 <= yCoordDrag < 8:
+                        desiredMove[0] = (xCoordDrag + 1, yCoordDrag + 1)
+                if xEdgeDrop != 0 and yEdgeDrop != 0:
+                    if 0 <= xCoordDrop < 8 and 0 <= yCoordDrop < 8:
+                        desiredMove[1] = (xCoordDrop + 1, yCoordDrop + 1)
+
+                drag = None
+                drop = None
+
+        ### UPDATE ###
+
+        # availableMoves = game1.availableMoves
+        # availableKeys = list(availableMoves.keys())
+        # if len(availableKeys) == 0:
+        #     if game1.currChecked():
+        #         if game1.currentConditions.whiteTurn:
+        #             # black victory
+        #             print("black wins")
+        #             break
+        #         else:
+        #             # white victory
+        #             print("white wins")
+        #             break
+        #     # draw
+        #     else:
+        #         print("draw")
+        #         break
+
+        if (game1.isGameOver())[0]:
+            print("game over!") #game1.isGameOver(), "game over!")
+            game1 = game()
+            _hash = {}
+            trainNum.value -= 1
+            print(trainNum.value)
+
+        if True:
+            if not game1.currentConditions.whiteTurn:
+                # game1.nodesTraversed = 0
+                # (eval, move) = minimax(game1, 2, float('-inf'), float('inf'), False)
+
+                move = MCTS(game1.getCopy(), False, nodeLookUp)
+
+                # print(game1.nodesTraversed)
+                # print (len(MemoTable))
+                game1.playMove(move)
+                _hash = game1.hashOnlyBoard()
+                if _hash not in game1.previousMovesHashed:
+                    game1.previousMovesHashed[_hash] = 1
+                else:
+                    game1.previousMovesHashed[_hash] += 1
+
+                game1.addMoves()
+                # print(move)
+
+            if desiredMove is not None:# and game1.currentConditions.whiteTurn: # and it is a valid move
+                # play move
+                promotionIntent = None
+                if desiredMove[0] in game1.availableMoves:
+                    for move in game1.availableMoves[desiredMove[0]]:
+                        ((start, end), special) = move
+                        if desiredMove != None and desiredMove[1] == end:
+                            if len(special) >= 3 and special[0:3] == "PPr":
+                                if promotionIntent is None:
+                                    temp = input()
+                                    while not (temp == "Q" or temp == "R" or temp == "B" or temp == "Kn"):
+                                        temp = input()
+                                    promotionIntent = temp
+                                if "PPr" + promotionIntent != special:
+                                    continue
+                                
+                            game1.playMove(move)
+                            _hash = game1.hashOnlyBoard()
+                            if _hash not in game1.previousMovesHashed:
+                                game1.previousMovesHashed[_hash] = 1
+                            else:
+                                game1.previousMovesHashed[_hash] += 1
+
+                            game1.addMoves()
+                            desiredMove = None
+            else:
+                pass
+
+        
+
+        ### RENDER ###
+
+        # refresh surface with white background
+        gameDisplay.fill((255, 255, 255))
+
+        # draw tiles
+        for i in rectangles:
+            pygame.draw.rect(gameDisplay, i[1], i[0])
+
+        # draw lines
+        # vertical
+        for i in range(0, 9):
+            pygame.draw.line(gameDisplay, (0, 0, 0), ((i * width) + xOffset, yOffset), ((i * width) + xOffset, height*8 + yOffset))
+
+        # horizontal
+        for j in range(0, 9):
+            pygame.draw.line(gameDisplay, (0, 0, 0),  (xOffset, -(j * height) + (height*8 + yOffset)), (width*8 + xOffset, -(j * height) + (height*8 + yOffset)))
+
+        xEdge = None
+        xCoord = None
+        yEdge = None
+        yCoord = None
+
+        if drag is not None:
+            # calculate board position
+            xEdge = (drag[0]-xOffset) % width
+            # x: 0 - 7
+            xCoord = math.floor((drag[0]-xOffset)/width) + 1
+            yEdge = (drag[1]-yOffset) % height
+            # y: 0 - 7
+            yCoord = 7 - math.floor((drag[1]-yOffset)/height) + 1
+
+            # print((xCoord, yCoord))
+
+        for i in game1.board:
+            if drag is None:
                 gameDisplay.blit(pieceImages[game1.board[i]], (((i[0]-1) * width) + xOffset, -(i[1] * height) + (height*8+yOffset)))
-            
-            temp = pygame.mouse.get_pos()
-            gameDisplay.blit(pieceImages[game1.board[(xCoord, yCoord)]], (temp[0] - (width/2), temp[1] - (height/2)))
 
-            # pygame.draw.circle(gameDisplay, (200,0,0), (((ord(k[0]) - 97) * 60) + 160 + 30, -(k[1] * 60) + 540 + 30), 10)
-            if (xCoord, yCoord) in game1.availableMoves:
-                for move in game1.availableMoves[(xCoord, yCoord)]:
-                    ((start, end), special) = move
-                    pygame.draw.circle(gameDisplay, (200,0,0), (((end[0]-1) * 60) + 160 + 30, -(end[1] * 60) + 540 + 30), 10)   
+            elif drag is not None and (xCoord, yCoord) in game1.board:
+                if xCoord != i[0] or yCoord != i[1]:
+                    gameDisplay.blit(pieceImages[game1.board[i]], (((i[0]-1) * width) + xOffset, -(i[1] * height) + (height*8+yOffset)))
+                
+                temp = pygame.mouse.get_pos()
+                gameDisplay.blit(pieceImages[game1.board[(xCoord, yCoord)]], (temp[0] - (width/2), temp[1] - (height/2)))
 
-    pygame.display.update()
-    clock.tick(60)
+                # pygame.draw.circle(gameDisplay, (200,0,0), (((ord(k[0]) - 97) * 60) + 160 + 30, -(k[1] * 60) + 540 + 30), 10)
+                if (xCoord, yCoord) in game1.availableMoves:
+                    for move in game1.availableMoves[(xCoord, yCoord)]:
+                        ((start, end), special) = move
+                        pygame.draw.circle(gameDisplay, (200,0,0), (((end[0]-1) * 60) + 160 + 30, -(end[1] * 60) + 540 + 30), 10)   
 
-pygame.quit()
-quit()
+        pygame.display.update()
+        clock.tick(60)
+
+    for i in processes:
+        i.join()
+
+    pygame.quit()
+    quit()
 
