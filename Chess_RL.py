@@ -643,6 +643,53 @@ class game:
                     hashString += str(self.board[(i, j)])
         return hashString
 
+    def hashBitBoard(self):
+        WhP = 0
+        WhR = 0
+        WhKn = 0
+        WhB = 0
+        WhQ = 0
+        WhK = 0
+        BlP = 0
+        BlR = 0
+        BlKn = 0
+        BlB = 0
+        BlQ = 0
+        BlK = 0
+
+        for i in range(1, 9):
+            for j in range(1, 9):
+                if (i, j) in self.board:
+                    if self.board[(i, j)] == Piece.WhP:
+                        WhP |= (1 << (i * 8 + j))
+                    if self.board[(i, j)] == Piece.WhR:
+                        WhR |= (1 << (i * 8 + j))
+                    if self.board[(i, j)] == Piece.WhKn:
+                        WhKn |= (1 << (i * 8 + j))
+                    if self.board[(i, j)] == Piece.WhB:
+                        WhB |= (1 << (i * 8 + j))
+                    if self.board[(i, j)] == Piece.WhQ:
+                        WhQ |= (1 << (i * 8 + j))
+                    if self.board[(i, j)] == Piece.WhK:
+                        WhK |= (1 << (i * 8 + j))
+                    if self.board[(i, j)] == Piece.BlP:
+                        BlP |= (1 << (i * 8 + j))
+                    if self.board[(i, j)] == Piece.BlR:
+                        BlR |= (1 << (i * 8 + j))
+                    if self.board[(i, j)] == Piece.BlKn:
+                        BlKn |= (1 << (i * 8 + j))
+                    if self.board[(i, j)] == Piece.BlB:
+                        BlB |= (1 << (i * 8 + j))
+                    if self.board[(i, j)] == Piece.BlQ:
+                        BlQ |= (1 << (i * 8 + j))
+                    if self.board[(i, j)] == Piece.BlK:
+                        BlK |= (1 << (i * 8 + j))
+
+        return (WhP, WhR, WhKn, WhB, WhQ, WhK, BlP, BlR, BlKn, BlB, BlQ, BlK, int(self.currentConditions.hasBlackKingMoved),
+                int(self.currentConditions.hasBRookKMoved), int(self.currentConditions.hasBRookQMoved), 
+                int(self.currentConditions.hasWhiteKingMoved), int(self.currentConditions.hasWRookKMoved), 
+                int(self.currentConditions.hasWRookQMoved), int(self.currentConditions.whiteTurn))
+
     # add legal moves
     def addMoves(self):
         keys = list(self.board.keys())
@@ -1242,63 +1289,35 @@ class game:
                 if len(self.availableMoves[key]) == 0:
                     self.availableMoves.pop(key)
 
-if __name__ == '__main__':
-    manager = Manager()
-    nodeLookUp = manager.dict()
-    trainNum = manager.Value('i', 1000000)
 
-    processes = []
-    for i in range(0, 15):
-        processes.append(Process(target=gameThread, args=(trainNum, nodeLookUp)))
-    for i in processes:
-        i.start()
-        pass
+game1 = game()
+print(game1.hashBitBoard())
+# if __name__ == '__main__':
 
+#     crashed = False
+#     pressed = False
 
-    
-    # game instance
-    import pygame
-    import math
+#     # game loop
+#     while not crashed:
 
-    pygame.init()
+#         ### UPDATE ###
 
-    display_width = 800
-    display_height = 600
+#         if (game1.isGameOver())[0]:
+#             print("game over!") #game1.isGameOver(), "game over!")
+#             game1 = game()
+#             _hash = {}
 
-    gameDisplay = pygame.display.set_mode((display_width,display_height))
-    pygame.display.set_caption('Chess')
+#         if True:
+#             if not game1.currentConditions.whiteTurn:
+#                 move = MCTS(game1.getCopy(), False, nodeLookUp)
 
-    # initiate game
-    game1 = game()
-    game1.addMoves()
+#                 game1.playMove(move)
+#                 _hash = game1.hashOnlyBoard()
+#                 if _hash not in game1.previousMovesHashed:
+#                     game1.previousMovesHashed[_hash] = 1
+#                 else:
+#                     game1.previousMovesHashed[_hash] += 1
 
-
-    clock = pygame.time.Clock()
-    crashed = False
-    pressed = False
-
-    # game loop
-    while not crashed:
-
-        ### UPDATE ###
-
-        if (game1.isGameOver())[0]:
-            print("game over!") #game1.isGameOver(), "game over!")
-            game1 = game()
-            _hash = {}
-            print(trainNum.value)
-
-        if True:
-            if not game1.currentConditions.whiteTurn:
-                move = MCTS(game1.getCopy(), False, nodeLookUp)
-
-                game1.playMove(move)
-                _hash = game1.hashOnlyBoard()
-                if _hash not in game1.previousMovesHashed:
-                    game1.previousMovesHashed[_hash] = 1
-                else:
-                    game1.previousMovesHashed[_hash] += 1
-
-                game1.addMoves()
+#                 game1.addMoves()
 
 
