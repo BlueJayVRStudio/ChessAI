@@ -1309,25 +1309,25 @@ def tuple_to_input(val):
     return np.array(val, dtype=np.float32).reshape(1, -1)
 
 # Load Model
-model = keras.models.load_model('./models/model1.keras')  
+model1 = keras.models.load_model('./models/model1.keras')  
 
 game1 = game()
 print(len(game1.hashBitBoard()))
 
 input_array = tuple_to_input(game1.hashBitBoard())
-output = model.predict(input_array)
+output = model1.predict(input_array)
 print("Output of the model 1:", output)
 
 
-# model = keras.models.load_model('./models/model2.h5')  
+model2 = keras.models.load_model('./models/model_base.keras')  
 
-# input_array = tuple_to_input(game1.hashBitBoard())
+input_array = tuple_to_input(game1.hashBitBoard())
 
-# output = model.predict(input_array)
-# print("Output of the model 2:", output)
+output = model2.predict(input_array)
+print("Output of the model 2:", output)
 
 
-def naiveStaticEvalAgent(game):
+def naiveStaticEvalAgent(game, model):
     # print(game.hashBitBoard())
     game.addMoves()
     if game.currentConditions.whiteTurn:
@@ -1401,85 +1401,30 @@ def naiveStaticEvalAgent(game):
 
 
 if __name__ == '__main__':
-    for s in range(100):
-        crashed = False
-        positions = []
-        points_sums = []
 
+    game1 = game()
+    result = None
 
-        game1 = game()
-        result = None
-
-        # game loop
-        while not crashed:
-            if game1.isGameOver()[0]:
-                print("game over!: ", game1.isGameOver())
-                if game1.isGameOver()[1] == "white":
-                    result = 1
-                elif game1.isGameOver()[1] == "black":
-                    result = -1
-                elif game1.isGameOver()[1] == "draw":
-                    result = 0
-                break
-            if len(game1.previousMoves) >= 50:
-                print("moves limit reached. Draw")
+    # game loop
+    while True:
+        if game1.isGameOver()[0]:
+            print("game over!: ", game1.isGameOver())
+            if game1.isGameOver()[1] == "white":
+                result = 1
+            elif game1.isGameOver()[1] == "black":
+                result = -1
+            elif game1.isGameOver()[1] == "draw":
                 result = 0
-                break
-            
-            naiveStaticEvalAgent(game1)
-            positions.append(game1.hashBitBoard())
-            points_sums.append(game1.getPointsSum())
-            # print(game1.getPointsSum())
-
-
-
-        # games = [games() for i in range(10)]
-        # results = [None for i in range(len(games))]
-
-        # allFinished = False
-
-        # while not allFinished:
-        #     allFinished = True
-
-        #     for i, _game in enumerate(games):
-        #         if _game.isGameOver()[0]:
-        #             print("game over!: ", _game.isGameOver())
-        #             if _game.isGameOver[1] == "white":
-        #                 results[i] = 100
-        #             elif _game.isGameOver[1] == "black":
-        #                 results[i] = 0
-        #             elif _game.isGameOver[1] == "draw":
-        #                 results[i] = -100
-        #             continue
-
-        #         if len(_game.previousMoves) >= 50:
-        #             print("moves limit reached. Draw")
-        #             results[i] = 0
-        #             continue
-                
-        #         naiveStaticEvalAgent(_game)
-        #         positions.append(_game.hashBitBoard())
-        #         points_sums.append(_game.getPointsSum())
-        #         allFinished = False
-
-
-
-        X_train = np.array([tuple_to_input(i)[0] for i in positions])
-        # y_train = np.full(X_train.shape[0], result) + np.array(points_sums)
-        y_train = np.full(X_train.shape[0], result)
+            break
+        if len(game1.previousMoves) >= 50:
+            print("moves limit reached. Draw")
+            result = 0
+            break
         
-        # scaler = MinMaxScaler(feature_range=(-1, 1))
-        # y_train = scaler.fit_transform(y_train.reshape(-1, 1)).flatten()
-        
-        # print("positions: ", X_train)
-        print("labels: ", y_train)
+        if game1.currentConditions.whiteTurn:
+            naiveStaticEvalAgent(game1, model1)
+        else:
+            naiveStaticEvalAgent(game1, model2)
 
-        optimizer = tf.keras.optimizers.Adam(learning_rate=1.0)
 
-        model.compile(optimizer=optimizer,
-                    loss='mean_squared_error',
-                    metrics=['mean_squared_error'])
-
-        model.fit(X_train, y_train, epochs=100) #, verbose=0)
-        model.save('./models/model1.keras') 
 
