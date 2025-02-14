@@ -18,6 +18,18 @@ def print_bitboard(bitboard: np.uint64):
         print(row)
     print()
 
+# algebraic to numeric index
+def square_to_index(square: str) -> int:
+    file = ord(square[0]) - ord('a')
+    rank = int(square[1]) - 1
+    return rank * 8 + file
+
+# numeric index to algebraic
+def index_to_square(index: int) -> str:
+    file = index % 8
+    rank = index // 8 + 1
+    return f"{chr(ord('a') + file)}{rank}"
+
 # Constants for board representation
 FILE_A = np.uint64(0x0101010101010101)
 FILE_H = np.uint64(0x8080808080808080)
@@ -37,4 +49,19 @@ def example():
     print(bitboard & RANK_8 != 0)
 
 if __name__ == "__main__":
-    example()
+    # print_bitboard(FILE_A)
+    # print_bitboard(FILE_H)
+    # print_bitboard(RANK_1)
+    # print_bitboard(RANK_8)
+    # example()
+
+    cyclic_correctness = True
+    for i in range(ord('a'), ord('h') + 1):
+        for j in range(8):
+            algebraic = chr(i) + str(j+1)
+            if algebraic != index_to_square(square_to_index(algebraic)):
+                cyclic_correctness = False
+    
+    print(f"symbolic conversion correctness: {cyclic_correctness}")
+    
+    
