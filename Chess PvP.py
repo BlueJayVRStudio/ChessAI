@@ -1191,7 +1191,6 @@ def minimax(game, depth, alpha, beta, maximizingPlayer):
                 break
             for move in availableMoves[key]:
                 game.playMove(move)
-                game.addMoves()
                 eval = minimax(game, depth - 1, alpha, beta, False)[0]
                 if eval >= maxEval:
                     candidateMove = move
@@ -1212,7 +1211,6 @@ def minimax(game, depth, alpha, beta, maximizingPlayer):
                 break
             for move in availableMoves[key]:
                 game.playMove(move)
-                game.addMoves()
                 eval = minimax(game, depth - 1, alpha, beta, True)[0]
                 if eval <= minEval:
                     candidateMove = move
